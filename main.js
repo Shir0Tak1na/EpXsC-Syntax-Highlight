@@ -297,6 +297,8 @@ function makeGrammar(lists) {
     },
     axis: wordPattern(AXES),
     degree: wordPattern(lists.degree),
+    /* 前置否定：ne 紧跟一个词时，等同 !（逻辑非），否定后面那个成分 */
+    negPrefix: /\bne(?=[ \t]+[A-Za-z_&*@?(\[])/i,
     keyword: wordPattern(lists.keyword),
     /* 术式名：大写开头且后面紧跟 ( { [ ，或下划线复合名（Gramakipo_Aepaus） */
     declaration: /\b(?:[A-Z][A-Za-z0-9_]*(?=\s*[({\[])|[A-Z][A-Za-z0-9]*_[A-Za-z0-9_]+)/,
@@ -456,9 +458,10 @@ function lintText(text, ctx) {
 /* ---------- 悬停提示 ---------- */
 
 /* 一个 token 可能带多个类（如 typeParam + type），按语义优先级取第一个 */
-const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'coordRun', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
+const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'coordRun', 'negPrefix', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
 
 const CLASS_LABEL = {
+  negPrefix: '前置否定',
   declaration: '术式名',
   predicate: '谓词',
   function: '谓词调用',
@@ -677,6 +680,22 @@ function variableTip(name, binding, info) {
   return { label: '变量 ' + name, body: (BIND_KIND[binding.kind] || BIND_KIND['未定']) + '作用域到块末。' };
 }
 
+/* ne 之后被否定的那段文字：顺着 DOM 兄弟节点走到子句边界 */
+function negScopeText(el) {
+  let out = '';
+  let node = el && el.nextSibling;
+  let guard = 0;
+  while (node && guard < 40) {
+    guard += 1;
+    const t = node.textContent || '';
+    const cut = /[;,\n]/.exec(t);
+    if (cut) { out += t.slice(0, cut.index); break; }
+    out += t;
+    node = node.nextSibling;
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
 /* 坐标串：拆出每一轴的取值 */
 const WORLD_AXES = ['X（东西）', 'Y（上下）', 'Z（南北）'];
 const LOCAL_AXES = ['左（X）', '上（Y）', '前（Z）'];
@@ -830,6 +849,14 @@ function tipForElement(el, info, ranks) {
   const code = el.closest ? el.closest('code[class*="language-EpXsC" i]') : null;
   const vars = code ? varTypesOf.get(code) : null;
   if (vars && vars.has(text)) { const vt = variableTip(text, vars.get(text), info); if (vt) return vt; }
+  if (cls === 'negPrefix') {
+    const scope = negScopeText(el);
+    const shown = scope.length > 24 ? scope.slice(0, 24) + '…' : scope;
+    return {
+      label: '前置否定 ne',
+      body: '等同「!」（逻辑非）：否定紧跟其后的成分' + (shown ? ' —— ' + shown : '') + '。在筛选键里即「取反」。'
+    };
+  }
   if (cls === 'coordRun') return coordTip(text);
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
@@ -1107,6 +1134,22 @@ class EpXsCSyntaxPlugin extends Plugin {
     new LintModal(this.app, file, issues, blocks).open();
   }
 
+  /* 把 ne 之后、直到子句末尾的 token 标出来：被否定的范围 */
+  markNegation(code) {
+    const heads = code.querySelectorAll('span.token.negPrefix');
+    for (let i = 0; i < heads.length; i++) {
+      let node = heads[i].nextSibling;
+      let guard = 0;
+      while (node && guard < 40) {
+        guard += 1;
+        const t = node.textContent || '';
+        if (/[;,\n]/.test(t)) break;
+        if (node.nodeType === 1 && node.classList && node.classList.contains('token')) node.classList.add('epx-neg-scope');
+        node = node.nextSibling;
+      }
+    }
+  }
+
   /* 词典里查不到的词加一层点线，提示未入典 */
   markUnknown(code) {
     const spans = code.querySelectorAll('span.token.word');
@@ -1178,6 +1221,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       code.innerHTML = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
       varTypesOf.set(code, parseVarTypes(text, this.info));
       this.markUnknown(code);
+      this.markNegation(code);
     } catch (err) {
       console.warn('[EpXsC Syntax]', err);
     }

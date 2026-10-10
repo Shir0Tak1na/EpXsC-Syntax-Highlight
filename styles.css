@@ -89,6 +89,8 @@ code[class*="language-EpXsC" i] .token.annotation { color: var(--epx-comment); f
 
 code[class*="language-EpXsC" i] .token.pretium { color: var(--epx-pretium); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.keyword { color: var(--epx-keyword); font-weight: 600; }
+code[class*="language-EpXsC" i] .token.negPrefix { color: var(--epx-keyword); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.epx-neg-scope { text-decoration: underline dotted var(--epx-keyword); text-underline-offset: 0.2em; }
 
 code[class*="language-EpXsC" i] .token.predicate,
 code[class*="language-EpXsC" i] .token.function { color: var(--epx-verb); }
