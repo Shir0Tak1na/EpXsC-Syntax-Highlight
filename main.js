@@ -93,6 +93,21 @@ function parseEntries(text) {
   return out;
 }
 
+/* 秩表里的分量列带 LaTeX，洗成人能读的样子 */
+const GREEK = { theta: 'θ', lambda: 'λ', sigma: 'σ', Delta: 'Δ', varphi: 'φ', eta: 'η', omega: 'ω', mu: 'μ', pi: 'π', alpha: 'α', beta: 'β', gamma: 'γ', tau: 'τ', rho: 'ρ' };
+
+function cleanMath(s) {
+  let t = String(s);
+  t = t.replace(/\$([^$]*)\$/g, '$1');
+  t = t.replace(/\\mathrm\{([^}]*)\}/g, '$1');
+  t = t.replace(/\\text\{([^}]*)\}/g, '$1');
+  t = t.replace(/\\([a-zA-Z]+)/g, function (all, name) { return GREEK[name] || name; });
+  t = t.replace(/\\[,;!]/g, ' ');
+  t = t.replace(/[{}]/g, '');
+  t = t.replace(/\\/g, '');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
 /* 维度模型「九个秩与维度的对应」表 → 秩区间提示 */
 function parseRanks(text) {
   const out = new Map();
@@ -109,7 +124,7 @@ function parseRanks(text) {
     if (!m) continue;
     const rank = m[1].replace('-', '–');
     const parts = [];
-    const comp = m[2].replace(/\$/g, '').replace(/\\/g, '').replace(/\s+/g, ' ').trim();
+    const comp = cleanMath(m[2]);
     if (comp) parts.push(comp);
     if (m[3].trim()) parts.push(m[3].trim());
     if (parts.length) out.set(rank, parts.join(' · '));
@@ -245,6 +260,26 @@ function makeGrammar(lists) {
     variable: {
       pattern: /([([,][ \t]*[A-Za-z0-9_]+:[ \t]*)([A-Za-z_][A-Za-z0-9_]*)/,
       lookbehind: true
+    },
+    /* 位数声明组：[2:名] —— 冒号前是位数、冒号后是变量名（列表容器的声明） */
+    indexDecl: {
+      pattern: /\[[ \t]*\d+[ \t]*:[^\]\n]*\]/,
+      inside: {
+        variable: /[A-Za-z_][A-Za-z0-9_]*/,
+        number: /\d+/,
+        punctuation: /:/,
+        bracket: /[\[\]]/
+      }
+    },
+    /* 下标组：[1] / [1..3] —— 里面的数字按「第 n 位／第 n 秩」解释 */
+    indexGroup: {
+      pattern: /\[[ \t]*\d+[ \t]*(?:\.\.[ \t]*\d*)?[ \t]*\]/,
+      inside: {
+        rankRange: /(?:\d+\.\.\d*|\d*\.\.\d+)(?!\.)/,
+        number: /\d+/,
+        operator: /\.\./,
+        bracket: /[\[\]]/
+      }
     },
     pretium: /\bpretium\b/i,
     /* 秩区间：1..3、..10、2..（要求至少一边有数字，且后面不再跟点，避免吃掉省略号 ...） */
@@ -581,10 +616,10 @@ function parseVarTypes(text, info) {
         else out.set(m[2], { type: m[1] });
         continue;
       }
-      m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[[^\]]*?([A-Za-z_][A-Za-z0-9_]*)\s*\]$/.exec(p);
-      if (m) { out.set(m[2], { type: m[1] }); continue; }
+      m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[[^\]]*?(\d+)?\s*:?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\]$/.exec(p);
+      if (m) { out.set(m[3], { type: m[1], container: '列表', length: m[2] || '' }); continue; }
       m = /^\[[^\]]*?([A-Za-z_][A-Za-z0-9_]*)\s*\]\s*:\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(p);
-      if (m) { out.set(m[2], { type: m[1] }); continue; }
+      if (m) { out.set(m[2], { type: m[1], container: '列表', length: '' }); continue; }
     }
   }
   const assign = /(^|[;\n])[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=(?!=)[ \t]*([^\n;]*)/g;
@@ -616,7 +651,8 @@ function variableTip(name, binding, info) {
   if (binding.type) {
     const entry = info && info.get(String(binding.type).toLowerCase());
     const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
-    return { label: '变量 ' + name, body: '形参，声明为 ' + binding.type + detail + '；作用域到块末。' };
+    const shape = binding.container ? '，' + binding.container + '容器，' + (binding.length ? '长度 ' + binding.length : '长度未定') : '';
+    return { label: '变量 ' + name, body: '形参：类型 ' + binding.type + shape + detail + '；作用域到块末。' };
   }
   if (binding.kind === '元素或类型') {
     const entry = info && info.get(String(binding.ref || '').toLowerCase());
@@ -624,6 +660,22 @@ function variableTip(name, binding, info) {
     return { label: '变量 ' + name, body: '取 ' + binding.ref + detail + ' 本身 —— 元素码与类型名既是类型，也是该类型的值；作用域到块末。' };
   }
   return { label: '变量 ' + name, body: (BIND_KIND[binding.kind] || BIND_KIND['未定']) + '作用域到块末。' };
+}
+
+/* 单个秩的定义：先找同名行，再找覆盖它的区间行（1–3 这类） */
+function rankDef(n, ranks) {
+  if (!ranks) return '';
+  const key = String(n);
+  if (ranks.has(key)) return ranks.get(key);
+  const num = parseInt(key, 10);
+  if (!num) return '';
+  let found = '';
+  ranks.forEach(function (value, k) {
+    if (found) return;
+    const m = /^(\d+)[–-](\d+)$/.exec(k);
+    if (m && num >= parseInt(m[1], 10) && num <= parseInt(m[2], 10)) found = value;
+  });
+  return found;
 }
 
 function rankSpan(a, b, ranks) {
@@ -732,6 +784,15 @@ function tipForElement(el, info, ranks) {
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
   if (cls === 'comment') return { label: '注释', body: '注释写作 /* … */；// 不用——/ 在术式里是相变，会同形歧义。' };
   if (cls === 'annotation') return { label: '注解行', body: '行首以 . 开头的注解行，不参与解析。' };
+  const group = el.closest ? el.closest('.token.indexGroup, .token.indexDecl') : null;
+  if (group && cls === 'number') {
+    const n = String(text).trim();
+    if (group.classList.contains('indexDecl')) {
+      return { label: '位数 ' + n, body: '列表容器的位数（长度）；冒号后是变量名。' };
+    }
+    const def = rankDef(n, ranks);
+    return { label: '下标 ' + n, body: def ? '第 ' + n + ' 位；作用于实体时即它的第 ' + n + ' 秩 —— ' + def + '。' : '第 ' + n + ' 位（秩只有 1–9）。' };
+  }
   if (cls === 'number') return { label: '数值', body: '有实数的量可以直接写算式。' };
   const tip = buildTip(cls, text, info, ranks);
   if (tip) return tip;
