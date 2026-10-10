@@ -295,6 +295,7 @@ const CLASS_LABEL = {
   declaration: '术式名',
   predicate: '谓词',
   function: '谓词调用',
+  keyword: '',
   type: '类型名',
   element: '元素码',
   unit: '单位',
@@ -302,6 +303,24 @@ const CLASS_LABEL = {
   degree: '程度词',
   axis: '缩放轴',
   pretium: '代价'
+};
+
+/* 词典暂未收、但术式里在用的词（补一条即可） */
+const EXTRA_WORDS = {
+  in: { word: 'in', pos: '介词', meaning: '在……里（词典暂未收录，按术式用法补）', abbr: '' }
+};
+
+/* 词典小节 → 真正的词性／类别；没有对应项时原样用小节名 */
+const SECTION_POS = {
+  '名词': '名词', '动词': '动词', '数词': '数词', '形容词': '形容词', '副词': '副词',
+  '介词': '介词', '助动词': '助动词', '判断词': '判断词', '限定词': '限定词',
+  '时间限定': '限定词', '数量与范围限定': '限定词', '指称限定': '限定词',
+  '顺序限定': '限定词', '程度限定': '副词',
+  '代词（人称）': '代词', '疑问词': '疑问词', '量词': '量词', '连接词与从句标记': '连接词',
+  '族名': '名词', '动物名': '名词', '族、血统与分类': '名词',
+  '地名与势力名': '专名', '地理 · 神宫 · 货币专名': '专名',
+  '根词': '词根', '后缀': '后缀', '复合词': '复合词', '高频补充词': '补充词',
+  '元素固定缩写': '元素', '术式关键词': '术式关键词', '单位': '单位'
 };
 
 function pickClass(classList) {
@@ -349,55 +368,49 @@ function bracketKinds(text) {
 
 /* 符号释义（取自术式语法 三、逻辑与运算 / 四、指针与寻址） */
 const SYMBOL_INFO = {
-  '!': { label: '运算符 !', body: '逻辑非（同 C；也可用助动词 ne）。' },
-  '&&': { label: '运算符 &&', body: '逻辑与（合取）——术式里通常写作 kon。' },
-  '||': { label: '运算符 ||', body: '包含或——术式里通常写作 aut。' },
-  '^': { label: '运算符 ^', body: '局部坐标：沿受术者朝向的左／上／前三轴偏移，三轴必须写全（C 中是位异或，术式征用）。' },
-  '~': { label: '运算符 ~', body: '相对坐标：沿世界轴的偏移，至少给 X 与 Z 两轴（C 中是位非，术式征用）。' },
-  '==': { label: '运算符 ==', body: '相等（前后同一则同一）——术式里也写作 aude。' },
-  '!=': { label: '运算符 !=', body: '不等。' },
-  '<=': { label: '运算符 <=', body: '不超过（比较），如 intervall(a, b) <= 66 miteas。' },
+  '!': { label: '运算符 !', body: '逻辑非，同 C；也可用助动词 ne。' },
+  '&&': { label: '运算符 &&', body: '逻辑与（合取）；术式里通常写作 kon。' },
+  '||': { label: '运算符 ||', body: '包含或；术式里通常写作 aut。' },
+  '^': { label: '运算符 ^', body: '局部坐标：沿受术者朝向的左／上／前三轴偏移，三轴必须写全。此符号在 C 中是位异或，由术式征用。' },
+  '~': { label: '运算符 ~', body: '相对坐标：沿世界轴的偏移，至少给 X 与 Z 两轴。此符号在 C 中是位非，由术式征用。' },
+  '==': { label: '运算符 ==', body: '相等（前后同一则同一）；亦有对应判断词 aude。' },
+  '!=': { label: '运算符 !=', body: '不等（比较）。' },
+  '<=': { label: '运算符 <=', body: '不超过（比较）。' },
   '>=': { label: '运算符 >=', body: '不少于（比较）。' },
   '<': { label: '运算符 <', body: '小于（比较）。' },
   '>': { label: '运算符 >', body: '大于（比较）。' },
-  '=': { label: '赋值 =', body: '写入变量（块内绑定，作用域到块末）——与系词 es（是／存在）分工不同。' },
-  '+=': { label: '复合算子 +=', body: '对术式自己的数值参数递增，如 radius += 2。' },
-  '-=': { label: '复合算子 -=', body: '递减（程度量也可用它，如 vis -= 2）。' },
-  '*=': { label: '复合算子 *=', body: '按倍率缩放。' },
-  '/=': { label: '复合算子 /=', body: '按比例缩小。' },
-  '+': { label: '运算符 +', body: '加法——有数值的量可以直接写算式。' },
+  '=': { label: '赋值 =', body: '写入变量：块内绑定的变量作用域到块末。与系词 es（是／存在）分工不同。' },
+  '+=': { label: '复合算子 +=', body: '对术式自身的数值参数递增。' },
+  '-=': { label: '复合算子 -=', body: '对术式自身的数值参数递减；程度量也可用。' },
+  '*=': { label: '复合算子 *=', body: '对术式自身的数值参数按倍率缩放。' },
+  '/=': { label: '复合算子 /=', body: '对术式自身的数值参数按比例缩小。' },
+  '+': { label: '运算符 +', body: '加法。有实数的量可以写算式。' },
   '-': { label: '运算符 -', body: '减法。' },
-  '*': { label: '运算符 *', body: '解引用：顺着引用取到那物本身（取地址写 &）。' },
-  '/': { label: '运算符 /', body: '除法；也是相变记号（所以注释不用 //）。' },
-  '?': { label: '占位符 ?', body: '自适应参数：值在发动时绑定——由施术者指定（luss ? MU），或由术式依情境自适配（自选方向）。' },
-  '..': { label: '区间 ..', body: '3..8 表 3 到 8；..10 表 10 以内；2.. 表自 2 起。两端都是秩时即秩区间。' },
-  '...': { label: '省略 ...', body: '列举未尽，如 &metos1,&metos2... 。' },
-  ';': { label: '分号 ;', body: '子句分隔——与换行等价，只在同一行要分开子句时写。' },
-  ',': { label: '逗号 ,', body: '并列：同一子句内的并列项；也用来分隔形参、相接量约束（luss ? MU, lic magis）。' },
-  ':': { label: '冒号 :', body: '「下一层开始」（块头，配缩进）；声明里是「类型: 变量名」。' },
-  '&': { label: '取地址 &', body: '取得某物的引用——设定里地址本身就是位置（第 1–3 秩）。' },
-  '*&': { label: '指针 *&', body: '顺着引用取到实体本身。' },
-  '@': { label: '目标简写 @', body: '对象集的简写，@e[genus=draco] 与 METOS[genus=draco] 等价。' },
-  '~': { label: '运算符 ~', body: '相对坐标：沿世界轴的偏移，至少给 X 与 Z 两轴。' }
-};
-
-/* 词典暂未收、但术式里在用的词（补一条即可） */
-const EXTRA_WORDS = {
-  in: { word: 'in', pos: '介词', meaning: '在……里（词典暂未收录，按术式用法补）', abbr: '' }
+  '*': { label: '运算符 *', body: '解引用：顺着引用取到那物本身；取地址用 &。' },
+  '/': { label: '运算符 /', body: '除法；同时是相变记号，所以注释不用双斜线。' },
+  '?': { label: '占位符 ?', body: '自适应参数：值在发动时绑定——或由施术者当场指定，或由术式依情境自行适配。' },
+  '..': { label: '区间 ..', body: '两端都写是闭区间；只写上界表示不超过，只写下界表示自该处起；两端都是秩时即秩区间。' },
+  '...': { label: '省略 ...', body: '列举未尽。' },
+  ';': { label: '分号 ;', body: '子句分隔，与换行等价；只在同一行要分开子句时写。' },
+  ',': { label: '逗号 ,', body: '并列：同一子句内的并列项；也用于分隔形参、相接量约束。' },
+  ':': { label: '冒号 :', body: '表「下一层开始」，作块头并与缩进配合；声明里则是「类型: 变量名」的分隔。' },
+  '&': { label: '取地址 &', body: '取得某物的引用。设定里地址本身就是位置（第 1–3 秩）。' },
+  '*&': { label: '取地址后解引用', body: '先取地址再顺着取回该物本身，合起来仍指那物本身。' },
+  '@': { label: '目标简写 @', body: '目标对象集的简写形式；全形为 METOS 加方括号。' }
 };
 
 const KIND_INFO = {
-  '参数表': { label: '圆括号 · 参数表', body: '术式的形参：写法「类型: 变量名」，逗号分隔；类型可省，省了由术式自判。' },
-  '实参表': { label: '圆括号 · 实参表', body: '调用谓词时给出的实参。谓词与实参平时靠并置（Plur aqua;），圆括号只在需要消歧时出现。' },
-  '分组': { label: '圆括号 · 分组／元组', body: '(a, b) 是元组；也用来显式指定求值顺序。' },
-  '筛选键表': { label: '方括号 · 筛选键表', body: '内为「键=值」，按条件筛出对象集：genus 类别、intervall 距离、ordin 排序、limit 取前几个…' },
-  '列表类型': { label: '方括号 · 列表类型', body: '该参数是列表容器，冒号后跟元素类型（如 [:METOS] 是「一列目标」）。' },
+  '参数表': { label: '圆括号 · 参数表', body: '术式的形参表。写法为「类型: 变量名」，逗号分隔；类型可省，省了由术式自判。' },
+  '实参表': { label: '圆括号 · 实参表', body: '调用谓词时给出的实参。谓词与实参平时靠并置，圆括号只在需要消歧时出现。' },
+  '分组': { label: '圆括号 · 分组／元组', body: '括号内以逗号分隔即成元组；也用来显式指定求值顺序。' },
+  '筛选键表': { label: '方括号 · 筛选键表', body: '内为「键=值」，按条件筛出对象集；键名与含义见《述无空语术式语法》筛选键一节。' },
+  '列表类型': { label: '方括号 · 列表类型', body: '方括号以冒号开头时表示列表容器，冒号后是元素类型。' },
   '位数声明': { label: '方括号 · 位数：变量', body: '括号内的冒号交代「哪一位：叫什么」——冒号前是位数，冒号后是变量名。' },
-  '下标 · 秩': { label: '方括号 · 下标（秩）', body: '取该对象的第 n 秩；a..b 是秩区间（如 [1..3] 是第 1–3 秩）。' },
-  '点名列表': { label: '方括号 · 点名列表', body: '把已取地址（&）的对象逐个列出，只作用于这些目标。' },
+  '下标 · 秩': { label: '方括号 · 下标（秩）', body: '取该对象的第 n 秩；写成区间时指一段秩。' },
+  '点名列表': { label: '方括号 · 点名列表', body: '把已取地址的对象逐个列出，只作用于这些目标。' },
   '目标集': { label: '方括号 · 目标集', body: 'siro 表示无目标（作用于环境），* 表示任意目标。' },
-  '列表': { label: '方括号 · 列表', body: '容器类型由括号自己声明：() 元组、[] 列表、{} 字典。' },
-  '语块': { label: '花括号 · 语块', body: '划范围：触发、效果、能量、代价都写在里面。同一个形状也兼作字典／映射（键值对）。' }
+  '列表': { label: '方括号 · 列表', body: '容器类型由括号自己声明：圆括号是元组、方括号是列表、花括号是字典。' },
+  '语块': { label: '花括号 · 语块', body: '划范围：触发、效果、能量、代价都写在里面。同一形状也兼作字典／映射。' }
 };
 
 function bracketTip(kind) {
@@ -463,8 +476,8 @@ function buildTip(cls, text, info, ranks) {
       if (span) return { label: '秩 ' + a + '–' + b, body: span };
       return { label: '区间 ' + a + '–' + b, body: '距离、角度、量值等都用这个写法；两端都是秩时才显示秩的构成' };
     }
-    if (b) return { label: '至 ' + b, body: '区间上界 ' + b + '（含）——如 intervall=..' + b + ' 即「' + b + ' 以内」' };
-    if (a) return { label: '自 ' + a + ' 起', body: '区间下界 ' + a + '（含）' };
+    if (b) return { label: '至 ' + b, body: '只写上界：表示不超过该数（含）。' };
+    if (a) return { label: '自 ' + a + ' 起', body: '只写下界：表示自该处起（含）。' };
     return { label: '区间', body: '术式里的 .. 区间写法' };
   }
   if (cls === 'bracket') return { label: '方括号', body: '列表 ／ 下标 ／ 秩' };
@@ -475,12 +488,12 @@ function buildTip(cls, text, info, ranks) {
   if (!info) return null;
   const entry = info.get(String(text).toLowerCase());
   if (!entry) return null;
-  const head = CLASS_LABEL[cls] || entry.pos || '词条';
+  const head = entry.kind
+    ? '词根·' + entry.kind
+    : (CLASS_LABEL[cls] || SECTION_POS[entry.pos] || entry.pos || '词条');
   const raw = entry.abbr || '';
   const showAbbr = raw && raw !== '—' && raw !== '-' && raw.toLowerCase() !== String(text).toLowerCase();
-  const abbr = showAbbr ? '（缩写 ' + raw + '）' : '';
-  const detail = [entry.pos && entry.pos !== head ? entry.pos : '', entry.meaning].filter(Boolean).join(' · ');
-  return { label: head + abbr, body: detail };
+  return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning };
 }
 
 const varTypesOf = new WeakMap();
@@ -543,8 +556,8 @@ function tipForElement(el, info, ranks) {
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
   if (cls === 'comment') return { label: '注释', body: '注释写作 /* … */；// 不用——/ 在术式里是相变，会同形歧义。' };
-  if (cls === 'annotation') return { label: '注解行', body: '以 . 开头的注解（如 .kw / .if），不参与解析。' };
-  if (cls === 'number') return { label: '数值', body: '有实数的量可以直接写算式，如 luss (15 + 35 * intervall(a, b)) MU。' };
+  if (cls === 'annotation') return { label: '注解行', body: '行首以 . 开头的注解行，不参与解析。' };
+  if (cls === 'number') return { label: '数值', body: '有实数的量可以直接写算式。' };
   const tip = buildTip(cls, text, info, ranks);
   if (tip) return tip;
   if (cls === 'word' && text.length >= 4 && !/[0-9]/.test(text)) {
