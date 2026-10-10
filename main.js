@@ -46,6 +46,9 @@ const TYPES = ['METOS', 'locus', 'siro'];
 /* 作用域／可见性限定词：写在变量名前，解析赋值时要跳过它们 */
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
+/* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
+const BUILD = '1.13.1';
+
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
 }
@@ -1052,6 +1055,11 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.registerDomEvent(document, 'mouseout', hideTip);
     this.registerDomEvent(document, 'scroll', hideTip, true);
     this.addCommand({
+      id: 'diagnose',
+      name: 'EpXsC 诊断报告（写进库根目录，便于整段复制）',
+      callback: function () { self.diagnose(); }
+    });
+    this.addCommand({
       id: 'lint-note',
       name: '检查当前笔记的 EpXsC 代码块',
       callback: function () { self.lintActiveNote(); }
@@ -1175,6 +1183,7 @@ class EpXsCSyntaxPlugin extends Plugin {
 
     this.info = info;
     this.ranks = ranks;
+    this.roots = roots;
     this.units = new Set();
     for (let i = 0; i < lists.unit.length; i++) this.units.add(String(lists.unit[i]).toLowerCase());
     this.keys = new Set();
@@ -1219,6 +1228,94 @@ class EpXsCSyntaxPlugin extends Plugin {
       this._styleState = from;
     } catch (e) { this._styleState = '注入失败：' + (e && e.message); }
     return this._styleState;
+  }
+
+  /* 生成诊断报告，写进库里，便于整段复制出来 */
+  async diagnose() {
+    const L = [];
+    const add = function (s) { L.push(s); };
+    add('# EpXsC 诊断报告');
+    add('');
+    add('- 代码版本（BUILD）：' + BUILD);
+    add('- manifest 版本：' + ((this.manifest && this.manifest.version) || '?'));
+    add('- 插件目录：' + ((this.manifest && this.manifest.dir) || '?'));
+    add('- 生成时间：' + new Date().toLocaleString());
+    let mode = '非笔记视图';
+    try {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (view) mode = view.getMode() === 'preview' ? '阅读视图' : '实时预览／源码';
+    } catch (e) { /* 忽略 */ }
+    add('- 当前视图：**' + mode + '**');
+    add('- 词表：词条 ' + this.info.size + ' · 词根 ' + (this.roots ? this.roots.size : '-') + ' · 秩 ' + this.ranks.size + ' · 谓词 ' + this.grammar.predicate.source.length + ' 字符');
+    add('- Prism：' + (window.Prism ? '有' : '**没有**') + ' · 语法 EpXsC：' + (window.Prism && window.Prism.languages && window.Prism.languages.EpXsC ? '已装' : '**缺失**'));
+    add('');
+    const codes = document.querySelectorAll('code[class*="language-EpXsC" i]');
+    add('## 代码块（' + codes.length + ' 个）');
+    for (let i = 0; i < codes.length && i < 6; i++) {
+      const el = codes[i];
+      let tokens = 0;
+      let color = '-';
+      try {
+        tokens = el.querySelectorAll('span.token').length;
+        const first = el.querySelector('span.token');
+        if (first && window.getComputedStyle) color = window.getComputedStyle(first).color;
+      } catch (e) { color = '(测不到)'; }
+      add('- 第 ' + (i + 1) + ' 个：class="' + (el.className || '') + '" · token ' + tokens + ' 个 · 首个 token 颜色 ' + color);
+    }
+    add('');
+    add('## 样式表');
+    let ourRules = 0;
+    try {
+      const sheets = document.styleSheets || [];
+      add('- 共 ' + sheets.length + ' 张');
+      for (let i = 0; i < sheets.length; i++) {
+        let n = 0;
+        let ours = 0;
+        let rules = null;
+        try { rules = sheets[i].cssRules; } catch (e) { add('- 第 ' + (i + 1) + ' 张：读不到（跨源）' + (sheets[i].href ? ' href=' + sheets[i].href : '')); continue; }
+        if (rules) {
+          n = rules.length;
+          for (let j = 0; j < rules.length; j++) {
+            const sel = rules[j].selectorText || '';
+            if (sel.indexOf('.epx-') >= 0 || sel.indexOf('.token.') >= 0) ours += 1;
+          }
+        }
+        ourRules += ours;
+        add('- 第 ' + (i + 1) + ' 张：' + n + ' 条规则，其中我们的 ' + ours + ' 条' + (sheets[i].href ? ' · href=' + sheets[i].href : ''));
+      }
+    } catch (e) { add('- 读样式表出错：' + (e && e.message)); }
+    add('- 命中我们选择器的规则合计：' + ourRules);
+    add('- 兜底状态：' + (this._styleState || '(还没跑)'));
+    add('');
+    add('## 插件目录里的 styles.css');
+    try {
+      const dir = (this.manifest && this.manifest.dir) || '.obsidian/plugins/epxsc-syntax';
+      const css = await this.app.vault.adapter.read(dir + '/styles.css');
+      const lines = String(css).split('\n');
+      add('- 读到 ' + css.length + ' 字符 · 含 .epx-tip：' + (css.indexOf('.epx-tip') >= 0 ? '是' : '**否**') + ' · 含 --epx-modifier：' + (css.indexOf('--epx-modifier') >= 0 ? '是' : '否'));
+      add('- 前 3 行：');
+      for (let i = 0; i < 3 && i < lines.length; i++) add('    ' + (i + 1) + '. ' + lines[i]);
+    } catch (e) { add('- **读不到**：' + (e && e.message)); }
+    add('');
+    add('## 样例代码块（下面这块在阅读视图里应当有颜色）');
+    add('');
+    add('\x60\x60\x60EpXsC');
+    add('Purificatio(priv locus: zone) {');
+    add('\tconsta lit = 3 MU;');
+    add('\tpriv x = &zone;');
+    add('\tpubl consta total = lit;');
+    add('\tne navis *&zone');
+    add('\tluss lit;');
+    add('}');
+    add('\x60\x60\x60');
+    const text = L.join('\n');
+    try {
+      await this.app.vault.adapter.write('EpXsC 诊断报告.md', text);
+      new Notice('诊断报告已写入库根目录：EpXsC 诊断报告.md（代码版本 ' + BUILD + '）', 12000);
+    } catch (e) {
+      new Notice('写报告失败：' + (e && e.message));
+    }
+    return text;
   }
 
   /* 检查当前笔记里的 EpXsC 代码块 */
@@ -1310,7 +1407,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       styleState = n ? '已载入 ' + n + ' 条着色规则' : '未载入 ✗（styles.css 没生效）';
     } catch (e) { styleState = '读不到'; }
     new Notice([
-      'EpXsC 自检',
+      'EpXsC 自检 · 代码版本 ' + BUILD,
       '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失'),
       '当前视图：' + mode,
       'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）· 实时预览代码行 ' + lines + ' 行',
