@@ -848,6 +848,8 @@ function buildTip(cls, text, info, ranks) {
   return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning + (note ? '；' + note : '') };
 }
 
+const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式：外部 styles.css 没生效时用它，内容与 styles.css 第 1／2／3／5／6 节一致 */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-faint);--epx-paren:var(--text-faint);--epx-bracket:var(--color-cyan);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--color-pink);--epx-b3:var(--color-green);--epx-variable:var(--color-pink);--epx-modifier:var(--color-purple)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit)}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3)}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}";
+
 const varTypesOf = new WeakMap();
 
 let tipNode = null;
@@ -856,9 +858,23 @@ function ensureTipNode() {
   if (tipNode && tipNode.parentNode) return tipNode;
   tipNode = document.createElement('div');
   tipNode.className = 'epx-tip';
-  tipNode.style.position = 'fixed';
-  tipNode.style.zIndex = '9999';
-  tipNode.style.pointerEvents = 'none';
+  const s = tipNode.style;
+  s.position = 'fixed';
+  s.zIndex = '9999';
+  s.pointerEvents = 'none';
+  s.opacity = '0';
+  /* 浮层的观感也自己带一份：外部样式表万一没生效，它就不会变成裸文本留在页面上 */
+  s.maxWidth = '340px';
+  s.padding = '7px 11px';
+  s.border = '1px solid var(--background-modifier-border)';
+  s.borderRadius = 'var(--radius-s, 6px)';
+  s.background = 'var(--background-secondary)';
+  s.color = 'var(--text-normal)';
+  s.fontFamily = 'var(--font-interface)';
+  s.fontSize = '12px';
+  s.lineHeight = '1.5';
+  s.boxShadow = 'var(--shadow-s, 0 2px 8px rgba(0,0,0,.25))';
+  s.transition = 'opacity 90ms ease';
   document.body.appendChild(tipNode);
   return tipNode;
 }
@@ -877,6 +893,7 @@ function showTipAt(x, y, tip) {
     bodyEl.textContent = tip.body;
     node.appendChild(bodyEl);
   }
+  node.style.opacity = '1';
   node.classList.add('is-visible');
   const nr = node.getBoundingClientRect();
   const vw = window.innerWidth || 900;
@@ -892,6 +909,7 @@ function showTipAt(x, y, tip) {
 }
 
 function hideTip() {
+  if (tipNode) tipNode.style.opacity = '0';
   if (tipNode) tipNode.classList.remove('is-visible');
 }
 
@@ -1165,7 +1183,42 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.grammar = makeGrammar(lists);
     this.install();
     console.log('[EpXsC Syntax] 词条 ' + info.size + ' · 词根 ' + roots.size + ' · 秩 ' + ranks.size + '（' + (lists.predicate.length) + ' 个谓词）');
+    await this.ensureStyles();
     this.rehighlight();
+  }
+
+  /* 样式兜底：外部 styles.css 没被加载时（颜色、右上角 EpXsC 标记、未入典点线、
+     悬停浮层样式会一起消失），自己把样式塞进页面。先试读插件目录里的 styles.css，读不到就用内置那份。 */
+  async ensureStyles() {
+    if (this._styleState) return this._styleState;
+    let present = false;
+    try {
+      const sheets = document.styleSheets || [];
+      for (let i = 0; i < sheets.length && !present; i++) {
+        let rules = null;
+        try { rules = sheets[i].cssRules; } catch (e) { continue; }
+        if (!rules) continue;
+        for (let j = 0; j < rules.length; j++) {
+          const sel = rules[j].selectorText || '';
+          if (sel.indexOf('.epx-tip') >= 0 || sel.indexOf('.token.keyword') >= 0) { present = true; break; }
+        }
+      }
+    } catch (e) { /* 读不到就当没有 */ }
+    if (present) { this._styleState = '外部样式表已生效'; return this._styleState; }
+    let css = '';
+    try {
+      const dir = (this.manifest && this.manifest.dir) || '.obsidian/plugins/epxsc-syntax';
+      css = await this.app.vault.adapter.read(dir + '/styles.css');
+    } catch (e) { css = ''; }
+    let from = '外部样式表没生效：已把 styles.css 注入页面';
+    if (!css || css.indexOf('.epx-tip') < 0) { css = FALLBACK_CSS; from = '外部样式表没生效：已注入内置配色'; }
+    try {
+      let el = document.getElementById('epxsc-styles');
+      if (!el) { el = document.createElement('style'); el.id = 'epxsc-styles'; document.head.appendChild(el); }
+      el.textContent = css;
+      this._styleState = from;
+    } catch (e) { this._styleState = '注入失败：' + (e && e.message); }
+    return this._styleState;
   }
 
   /* 检查当前笔记里的 EpXsC 代码块 */
@@ -1263,7 +1316,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）· 实时预览代码行 ' + lines + ' 行',
       '首个块 class：' + firstClass,
       '首个块 token 数：' + tokenCount + ' · 首个 token 颜色：' + color,
-      '样式表：' + styleState
+      '样式表：' + styleState + (this._styleState ? ' · 兜底：' + this._styleState : '')
     ].join('\n'), 15000);
   }
 
