@@ -382,6 +382,15 @@ class EpXsCSyntaxPlugin extends Plugin {
       if (file && file.path === DICT_PATH) self.refresh();
     }));
     this.app.workspace.onLayoutReady(function () { self.refresh(); });
+    /* 启动期多补几次，之后靠事件与看门狗兜底 */
+    const early = [400, 1500];
+    for (let i = 0; i < early.length; i++) {
+      const t = window.setTimeout(function () { self.ensureRendered(); }, early[i]);
+      this.register(function () { window.clearTimeout(t); });
+    }
+    this.registerEvent(this.app.workspace.on('layout-change', function () { self.ensureRendered(); }));
+    this.registerEvent(this.app.workspace.on('active-leaf-change', function () { self.ensureRendered(); }));
+    this.registerInterval(window.setInterval(function () { self.ensureRendered(); }, 2500));
   }
 
   install() {
@@ -457,6 +466,22 @@ class EpXsCSyntaxPlugin extends Plugin {
     if (!root || !root.querySelectorAll) return;
     const nodes = root.querySelectorAll(CODE_SELECTOR);
     for (let i = 0; i < nodes.length; i++) this.highlightOne(nodes[i]);
+  }
+
+  /* 自愈：启动时首屏可能早于插件加载、或 window.Prism 尚未就绪，
+     也可能被 Obsidian 的 Prism 初始化覆盖掉注册的语法。
+     这里确认两件事：语法还在不在、该上色的块有没有 token。 */
+  ensureRendered() {
+    const Prism = window.Prism;
+    if (!Prism || !Prism.languages) return;
+    if (Prism.languages.EpXsC !== this.grammar) this.install();
+    const nodes = document.querySelectorAll(CODE_SELECTOR);
+    for (let i = 0; i < nodes.length; i++) {
+      const code = nodes[i];
+      if (code.querySelector('span.token')) continue;
+      if (!(code.textContent || '').trim()) continue;
+      this.highlightOne(code);
+    }
   }
 
   highlightOne(code) {

@@ -98,6 +98,14 @@ Obsidian 的代码块只有在 Prism 认识那个语言时才会被切成 `<span
 
 **边界**：移动端没有 hover。
 
+## 启动时序与自愈
+
+Obsidian 启动时，首屏可能在社区插件加载完成**之前**就已渲染（那一次不经过插件的 markdown 后处理器），`window.Prism` 也可能尚未就绪。插件因此带一层自愈，不必手动切笔记：
+
+- 载入后 0.4s / 1.5s 各补一次
+- `layout-change`、`active-leaf-change` 时补
+- 每 2.5s 的看门狗：确认「EpXsC 语法仍在 `Prism.languages` 里」且「页面上每个 EpXsC 代码块都有 token」，缺哪个补哪个
+
 ## 已知边界
 
 - **阅读视图 / PDF 导出**：完整高亮。
