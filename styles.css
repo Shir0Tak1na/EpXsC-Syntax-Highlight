@@ -31,6 +31,7 @@ body {
   --epx-b2:       var(--color-pink);     /* 嵌套括号 第 2 层 */
   --epx-b3:       var(--color-green);    /* 嵌套括号 第 3 层（再深轮回第 1 层） */
   --epx-variable: var(--color-pink);     /* 变量名（参数表里冒号后面那个词） */
+  --epx-modifier: var(--color-purple);   /* 限定词 private／protected／public／const */
 }
 
 /* 浅色主题下 --color-yellow 太淡，压深一档保证可读 */
@@ -108,6 +109,9 @@ code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
 
 code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.coordRun { color: var(--text-muted); font-weight: 600; text-decoration: underline dotted var(--text-faint); text-underline-offset: 0.2em; }
+code[class*="language-EpXsC" i] .token.modifier { color: var(--epx-modifier); font-style: italic; font-weight: 700; }
+code[class*="language-EpXsC" i] .token.declTarget { color: var(--epx-variable); font-weight: 600; }
+code[class*="language-EpXsC" i] .token.varUse { color: var(--epx-variable); }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
 code[class*="language-EpXsC" i] .token.bracket { color: var(--epx-bracket); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.paren { color: var(--epx-paren); }
