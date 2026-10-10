@@ -142,6 +142,24 @@ code[class*="language-EpXsC" i] .token.epx-d3 { color: var(--epx-b3); }
 code[class*="language-EpXsC" i] .token.epx-tip-host { cursor: help; }
 
 /* --------------------------------------------------------------------------
+   6. 语法检查：未入典的点线 + 结果面板
+   -------------------------------------------------------------------------- */
+code[class*="language-EpXsC" i] .token.epx-unknown {
+  text-decoration: underline dotted var(--color-orange);
+  text-underline-offset: 0.2em;
+}
+
+.epx-lint h4 { margin: 0 0 0.4em; }
+.epx-lint-summary { color: var(--text-muted); font-size: var(--font-ui-smaller); margin-bottom: 0.6em; }
+.epx-lint-list { display: flex; flex-direction: column; gap: 2px; max-height: 60vh; overflow-y: auto; }
+.epx-lint-row { display: flex; gap: 0.7em; align-items: baseline; padding: 0.3em 0.5em; border-radius: var(--radius-s); cursor: pointer; }
+.epx-lint-row:hover { background: var(--background-modifier-hover); }
+.epx-lint-line { color: var(--text-faint); font-family: var(--font-monospace); font-size: var(--font-ui-smaller); min-width: 4.6em; }
+.epx-lint-msg { flex: 1; }
+.epx-lint-error .epx-lint-msg { color: var(--color-red); }
+.epx-lint-warn .epx-lint-msg { color: var(--color-orange); }
+
+/* --------------------------------------------------------------------------
    4. 导出／打印
    -------------------------------------------------------------------------- */
 @media print {

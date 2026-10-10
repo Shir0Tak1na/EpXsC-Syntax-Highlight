@@ -10,7 +10,7 @@
  *           词典一改、颜色跟着改；读不到就退回下面的内置词表（两者取并集，内置的不会被顶掉）。
  */
 
-const { Plugin, TFile, Notice, MarkdownView } = require('obsidian');
+const { Plugin, TFile, Notice, MarkdownView, Modal } = require('obsidian');
 
 const LANG_KEYS = ['EpXsC', 'epxsc', 'EPXSC'];
 const CODE_SELECTOR = 'code[class*="language-EpXsC" i]';
@@ -286,6 +286,123 @@ const BASE_LISTS = {
   unit: FALLBACK.unit.slice()
 };
 
+/* ---------- 语法检查 ---------- */
+
+const BRANCH_WORDS = ['keal', 'keol', 'tam', 'dum', 'nisi', 'quan'];
+
+/* 逐块检查；返回 [{ level, line, message }]。ctx 需要 info / units / keys */
+function lintText(text, ctx) {
+  const issues = [];
+  const lines = text.split('\n');
+  const push = function (level, line, message) { issues.push({ level: level, line: line, message: message }); };
+  const units = (ctx && ctx.units) || new Set();
+  const keys = (ctx && ctx.keys) || new Set();
+
+  /* ① 括号：配对、交叉、闭合（顺带跳过注释） */
+  const stack = [];
+  const pairOf = { ')': '(', ']': '[', '}': '{' };
+  let inComment = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let clean = '';
+    for (let c = 0; c < line.length; c++) {
+      const ch = line.charAt(c);
+      if (inComment) { if (ch === '*' && line.charAt(c + 1) === '/') { inComment = false; c += 1; } continue; }
+      if (ch === '/' && line.charAt(c + 1) === '*') { inComment = true; c += 1; continue; }
+      clean += ch;
+    }
+    for (let c = 0; c < clean.length; c++) {
+      const ch = clean.charAt(c);
+      if (ch === '(' || ch === '[' || ch === '{') stack.push({ ch: ch, line: i + 1 });
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        const top = stack.pop();
+        if (!top) push('error', i + 1, '多出一个「' + ch + '」，前面没有与之对应的「' + pairOf[ch] + '」');
+        else if (top.ch !== pairOf[ch]) push('error', i + 1, '括号对不上：这里是「' + ch + '」，但最近未闭合的是「' + top.ch + '」（第 ' + top.line + ' 行）');
+      }
+    }
+    /* ② 块头：行尾是冒号，下一行必须缩进更深 */
+    if (/:$/.test(clean.replace(/[ \t]+$/, '')) && clean.trim()) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j += 1;
+      if (j >= lines.length) push('error', i + 1, '冒号开的块没有块体');
+      else {
+        const base = (lines[i].match(/^[ \t]*/) || [''])[0].length;
+        const next = (lines[j].match(/^[ \t]*/) || [''])[0].length;
+        if (next <= base) push('error', j + 1, '块体没有缩进：冒号开的块，这一行要比块头更深');
+      }
+    }
+  }
+  for (let i = 0; i < stack.length; i++) push('error', stack[i].line, '「' + stack[i].ch + '」没有闭合');
+
+  /* 日常句与术式的分界：句号「.」不参与术式（它是日常句的句号）。
+     含句号的块按日常句对待，只查括号，不套术式的规矩。 */
+  let prose = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/\.\s*(\/\*.*)?$/.test(lines[i].replace(/[ \t]+$/, ""))) { prose = true; break; }
+  }
+  if (prose) return issues;
+
+  /* ③ 判断词要带块 */
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)/.exec(lines[i]);
+    if (!m || BRANCH_WORDS.indexOf(m[1].toLowerCase()) < 0) continue;
+    if (lines[i].indexOf(':') < 0 && lines[i].indexOf('{') < 0) {
+      push('warn', i + 1, '判断词「' + m[1] + '」要带块：行尾写冒号加缩进，或用花括号');
+    }
+  }
+
+  /* ④ 数字后面跟的必须是登记过的单位 */
+  for (let i = 0; i < lines.length; i++) {
+    const re = /(\d)[ \t]*([A-Za-z_][A-Za-z0-9_]*)/g;
+    let m;
+    while ((m = re.exec(lines[i]))) {
+      if (units.has(m[2].toLowerCase())) continue;
+      push('warn', i + 1, '「' + m[1] + ' ' + m[2] + '」——' + m[2] + ' 不是登记过的单位');
+    }
+  }
+
+  /* ⑤ 功率口径不得写锁存 */
+  for (let i = 0; i < lines.length; i++) {
+    if (/\bluss\b/i.test(lines[i]) && /\b(MUW|EUW)\b/.test(lines[i])) {
+      push('error', i + 1, '写 MUW／EUW 即持续发动（功率口径），不得再写 luss（锁存）');
+    }
+  }
+
+  /* ⑥ 量约束说说明的是「?」声明的量 */
+  for (let i = 0; i < lines.length; i++) {
+    if (/\blic\s+(magis|minus)\b/i.test(lines[i]) && lines[i].indexOf('?') < 0) {
+      push('warn', i + 1, '「lic magis／lic minus」用来说明由「?」声明的量可增／可减，这一行没有「?」');
+    }
+  }
+
+  /* ⑦ 筛选键要登记；下标（秩）要在 1–9；筛选值不按秩解释 */
+  const sq = /\[([^\]\n]*)\]/g;
+  let b;
+  while ((b = sq.exec(text))) {
+    const before = text.slice(0, b.index);
+    const line = before.split('\n').length;
+    const inner = b[1];
+    let back = b.index - 1;
+    while (back >= 0 && /[ \t]/.test(text.charAt(back))) back -= 1;
+    if (text.charAt(back) === '=') continue;
+    const kind = classifySquare(inner);
+    if (kind === '筛选键表') {
+      const kr = /([A-Za-z_][A-Za-z0-9_]*)\s*=/g;
+      let k;
+      while ((k = kr.exec(inner))) {
+        if (!keys.has(k[1].toLowerCase())) push('warn', line, '筛选键「' + k[1] + '」不在登记表里');
+      }
+    } else if (kind === '下标 · 秩') {
+      const nums = inner.match(/\d+/g) || [];
+      for (let n = 0; n < nums.length; n++) {
+        const v = parseInt(nums[n], 10);
+        if (v < 1 || v > 9) push('warn', line, '秩只有 1–9，这里的「' + nums[n] + '」超出范围');
+      }
+    }
+  }
+  return issues;
+}
+
 /* ---------- 悬停提示 ---------- */
 
 /* 一个 token 可能带多个类（如 typeParam + type），按语义优先级取第一个 */
@@ -348,13 +465,9 @@ function bracketKinds(text) {
       } else if (ch === '[') {
         const close = src.indexOf(']', i);
         const inner = close > 0 ? src.slice(i + 1, close) : '';
-        if (/=/.test(inner)) kind = '筛选键表';
-        else if (/^\s*:/.test(inner)) kind = '列表类型';
-        else if (/^\s*\d+\s*:/.test(inner)) kind = '位数声明';
-        else if (/&/.test(inner)) kind = '点名列表';
-        else if (/siro|\*/.test(inner)) kind = '目标集';
-        else if (/\.\./.test(inner) || /^\s*\d+\s*$/.test(inner)) kind = '下标 · 秩';
-        else kind = '列表';
+        let back = i - 1;
+        while (back >= 0 && /[ \t]/.test(src.charAt(back))) back -= 1;
+        kind = src.charAt(back) === '=' ? '筛选值' : classifySquare(inner);
       } else {
         kind = '语块';
       }
@@ -399,10 +512,22 @@ const SYMBOL_INFO = {
   '@': { label: '目标简写 @', body: '目标对象集的简写形式；全形为 METOS 加方括号。' }
 };
 
+/* 方括号里装的是什么（提示与语法检查共用这一套判定） */
+function classifySquare(inner) {
+  if (/=/.test(inner)) return '筛选键表';
+  if (/^\s*:/.test(inner)) return '列表类型';
+  if (/^\s*\d+\s*:/.test(inner)) return '位数声明';
+  if (/&/.test(inner)) return '点名列表';
+  if (/siro|\*/.test(inner)) return '目标集';
+  if (/\.\./.test(inner) || /^\s*\d+\s*$/.test(inner)) return '下标 · 秩';
+  return '列表';
+}
+
 const KIND_INFO = {
   '参数表': { label: '圆括号 · 参数表', body: '术式的形参表。写法为「类型: 变量名」，逗号分隔；类型可省，省了由术式自判。' },
   '实参表': { label: '圆括号 · 实参表', body: '调用谓词时给出的实参。谓词与实参平时靠并置，圆括号只在需要消歧时出现。' },
   '分组': { label: '圆括号 · 分组／元组', body: '括号内以逗号分隔即成元组；也用来显式指定求值顺序。' },
+  '筛选值': { label: '方括号 · 筛选值', body: '筛选键的取值：列表或区间，按该键的规则解释。' },
   '筛选键表': { label: '方括号 · 筛选键表', body: '内为「键=值」，按条件筛出对象集；键名与含义见《述无空语术式语法》筛选键一节。' },
   '列表类型': { label: '方括号 · 列表类型', body: '方括号以冒号开头时表示列表容器，冒号后是元素类型。' },
   '位数声明': { label: '方括号 · 位数：变量', body: '括号内的冒号交代「哪一位：叫什么」——冒号前是位数，冒号后是变量名。' },
@@ -650,6 +775,43 @@ function inCodeContext(el) {
   return false;
 }
 
+/* 检查结果面板：点一行跳到那一处 */
+class LintModal extends Modal {
+  constructor(app, file, issues, blocks) {
+    super(app);
+    this.file = file;
+    this.issues = issues;
+    this.blocks = blocks;
+  }
+
+  onOpen() {
+    const el = this.contentEl;
+    el.addClass('epx-lint');
+    el.createEl('h4', { text: 'EpXsC 语法检查 · ' + this.file.basename });
+    if (!this.issues.length) {
+      el.createEl('div', { class: 'epx-lint-summary', text: this.blocks + ' 个代码块 · 没有发现问题' });
+      return;
+    }
+    let errs = 0;
+    for (let i = 0; i < this.issues.length; i++) if (this.issues[i].level === 'error') errs += 1;
+    el.createEl('div', { class: 'epx-lint-summary', text: this.blocks + ' 个代码块 · ' + this.issues.length + ' 处（' + errs + ' 错误 / ' + (this.issues.length - errs) + ' 警告）· 点一行跳到该处' });
+    const list = el.createEl('div', { class: 'epx-lint-list' });
+    const self = this;
+    for (let i = 0; i < this.issues.length; i++) {
+      const it = this.issues[i];
+      const row = list.createEl('div', { class: 'epx-lint-row epx-lint-' + it.level });
+      row.createEl('span', { class: 'epx-lint-line', text: '第 ' + it.line + ' 行' });
+      row.createEl('span', { class: 'epx-lint-msg', text: it.message });
+      row.addEventListener('click', function () {
+        self.app.workspace.getLeaf(false).openFile(self.file, { eState: { line: Math.max(0, it.line - 1), ch: 0 } });
+        self.close();
+      });
+    }
+  }
+
+  onClose() { this.contentEl.empty(); }
+}
+
 class EpXsCSyntaxPlugin extends Plugin {
   onload() {
     const self = this;
@@ -675,6 +837,11 @@ class EpXsCSyntaxPlugin extends Plugin {
     });
     this.registerDomEvent(document, 'mouseout', hideTip);
     this.registerDomEvent(document, 'scroll', hideTip, true);
+    this.addCommand({
+      id: 'lint-note',
+      name: '检查当前笔记的 EpXsC 代码块',
+      callback: function () { self.lintActiveNote(); }
+    });
     this.addCommand({
       id: 'self-check',
       name: '悬停提示自检',
@@ -794,10 +961,71 @@ class EpXsCSyntaxPlugin extends Plugin {
 
     this.info = info;
     this.ranks = ranks;
+    this.units = new Set();
+    for (let i = 0; i < lists.unit.length; i++) this.units.add(String(lists.unit[i]).toLowerCase());
+    this.keys = new Set();
+    const keySet = this.keys;
+    info.forEach(function (v, k) { if (v.pos === '筛选键') keySet.add(k); });
     this.grammar = makeGrammar(lists);
     this.install();
     console.log('[EpXsC Syntax] 词条 ' + info.size + ' · 词根 ' + roots.size + ' · 秩 ' + ranks.size + '（' + (lists.predicate.length) + ' 个谓词）');
     this.rehighlight();
+  }
+
+  /* 检查当前笔记里的 EpXsC 代码块 */
+  async lintActiveNote() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view || !view.file) { new Notice('先打开一篇笔记再检查。'); return; }
+    const file = view.file;
+    const text = await this.app.vault.cachedRead(file);
+    const re = /^[ \t]*\x60\x60\x60EpXsC[ \t]*\r?\n([\s\S]*?)^[ \t]*\x60\x60\x60[ \t]*$/gm;
+    const ctx = { info: this.info, units: this.units, keys: this.keys };
+    let m;
+    let blocks = 0;
+    const issues = [];
+    while ((m = re.exec(text))) {
+      blocks += 1;
+      const start = text.slice(0, m.index).split('\n').length;
+      const found = lintText(m[1], ctx);
+      for (let i = 0; i < found.length; i++) {
+        issues.push({ level: found[i].level, line: start + 1 + found[i].line, message: found[i].message });
+      }
+    }
+    if (!blocks) { new Notice('这一页没有 EpXsC 代码块。'); return; }
+    new LintModal(this.app, file, issues, blocks).open();
+  }
+
+  /* 词典里查不到的词加一层点线，提示未入典 */
+  markUnknown(code) {
+    const spans = code.querySelectorAll('span.token.word');
+    for (let i = 0; i < spans.length; i++) {
+      const w = (spans[i].textContent || '').toLowerCase();
+      if (w.length < 4 || /[0-9]/.test(w)) continue;
+      if (this.info.has(w)) continue;
+      spans[i].classList.add('epx-unknown');
+    }
+  }
+
+  /* 自检：当前视图里到底有没有 token、词表读进来没有 */
+  selfCheck() {
+    let mode = '非笔记视图';
+    try {
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (view) mode = view.getMode() === 'preview' ? '阅读视图' : '实时预览／源码';
+    } catch (err) { /* 忽略 */ }
+    const codes = document.querySelectorAll('code[class*="language-EpXsC" i]');
+    let tokened = 0;
+    for (let i = 0; i < codes.length; i++) {
+      if (codes[i].querySelector('span.token')) tokened += 1;
+    }
+    const lines = document.querySelectorAll('.HyperMD-codeblock').length;
+    new Notice([
+      'EpXsC 自检',
+      '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失'),
+      '当前视图：' + mode,
+      'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）',
+      '实时预览代码行 ' + lines + ' 行'
+    ].join('\n'), 15000);
   }
 
   rehighlight() {
@@ -837,6 +1065,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       if (!grammar) return;
       code.innerHTML = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
       varTypesOf.set(code, parseVarTypes(text, this.info));
+      this.markUnknown(code);
     } catch (err) {
       console.warn('[EpXsC Syntax]', err);
     }
