@@ -1040,7 +1040,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     });
     this.addCommand({
       id: 'self-check',
-      name: '悬停提示自检',
+      name: 'EpXsC 自检（视图／token／颜色／样式表）',
       callback: function () { self.selfCheck(); }
     });
     this.register(function () {
@@ -1231,12 +1231,39 @@ class EpXsCSyntaxPlugin extends Plugin {
       if (codes[i].querySelector('span.token')) tokened += 1;
     }
     const lines = document.querySelectorAll('.HyperMD-codeblock').length;
+    /* 决定性三问：token 有没有、算出来的颜色是什么、样式表载入没有 */
+    let firstClass = '(没有代码块)';
+    let tokenCount = 0;
+    let color = '(未测)';
+    if (codes[0]) {
+      firstClass = codes[0].className || '(空)';
+      tokenCount = codes[0].querySelectorAll('span.token').length;
+      const first = codes[0].querySelector('span.token');
+      try { if (first && window.getComputedStyle) color = window.getComputedStyle(first).color; } catch (e) { color = '(读不到)'; }
+    }
+    let styleState = '未知';
+    try {
+      let n = 0;
+      const sheets = document.styleSheets || [];
+      for (let i = 0; i < sheets.length; i++) {
+        let rules = null;
+        try { rules = sheets[i].cssRules; } catch (e) { continue; }
+        if (!rules) continue;
+        for (let j = 0; j < rules.length; j++) {
+          const sel = rules[j].selectorText || '';
+          if (sel.indexOf('.token.') >= 0 || sel.indexOf('.epx-tip') >= 0) n += 1;
+        }
+      }
+      styleState = n ? '已载入 ' + n + ' 条着色规则' : '未载入 ✗（styles.css 没生效）';
+    } catch (e) { styleState = '读不到'; }
     new Notice([
       'EpXsC 自检',
       '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失'),
       '当前视图：' + mode,
-      'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）',
-      '实时预览代码行 ' + lines + ' 行'
+      'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）· 实时预览代码行 ' + lines + ' 行',
+      '首个块 class：' + firstClass,
+      '首个块 token 数：' + tokenCount + ' · 首个 token 颜色：' + color,
+      '样式表：' + styleState
     ].join('\n'), 15000);
   }
 
@@ -1273,6 +1300,9 @@ class EpXsCSyntaxPlugin extends Plugin {
       const text = code.textContent || '';
       const found = /language-(\w+)/.exec(code.className || '');
       const lang = found ? found[1] : 'EpXsC';
+      /* 样式选的是 language-EpXsC：万一 Obsidian 没给这个 class，token 会出来但不上色。
+         补一个，让着色不悬在外部 class 上。 */
+      if (!found && code.classList) code.classList.add('language-EpXsC');
       const grammar = Prism.languages[lang] || Prism.languages.EpXsC;
       if (!grammar) return;
       let html = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
