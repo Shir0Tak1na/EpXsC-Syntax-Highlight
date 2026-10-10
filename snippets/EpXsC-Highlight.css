@@ -105,6 +105,7 @@ code[class*="language-EpXsC" i] .token.degree { color: var(--epx-degree); font-s
 code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
 
 code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.coordRun { color: var(--text-muted); font-weight: 600; text-decoration: underline dotted var(--text-faint); text-underline-offset: 0.2em; }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
 code[class*="language-EpXsC" i] .token.bracket { color: var(--epx-bracket); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.paren { color: var(--epx-paren); }

@@ -303,6 +303,11 @@ function makeGrammar(lists) {
     predicate: wordPattern(lists.predicate),
     function: /\b[a-z][A-Za-z0-9_]*(?=\s*\()/,
     pointer: /\*&|&|@/,
+    /* 坐标串：同一符号连写两个以上才算坐标（~ 世界轴 / ^ 朝向前三轴） */
+    coordRun: {
+      pattern: /(?:~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+|(?:\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+/,
+      greedy: true
+    },
     operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=|\.{2,3})|\+|-|\*|\/|=|<|>|\^|~|\?|!/,
     /* 括号分三类：() 分组 · [] 方括号（列表 / 下标 / 秩）· {} 花括号（语块）；其余标点归 punctuation */
     paren: /[()]/,
@@ -377,6 +382,16 @@ function lintText(text, ctx) {
   for (let i = 0; i < stack.length; i++) push('error', stack[i].line, '「' + stack[i].ch + '」没有闭合');
   if (prose) return issues;
 
+  /* 坐标串：~ 至少两轴（X、Z），^ 必须三轴 */
+  const coordRe = /(?:~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+|(?:\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+/g;
+  let cd;
+  while ((cd = coordRe.exec(text))) {
+    const line = text.slice(0, cd.index).split('\n').length;
+    const c = parseCoord(cd[0]);
+    if (c.values.length > 3) push('warn', line, '坐标最多三轴，这里写了 ' + c.values.length + ' 个');
+    else if (c.sign === '^' && c.values.length !== 3) push('error', line, '局部坐标必须写全三轴（左／上／前），这里只有 ' + c.values.length + ' 个');
+  }
+
   /* ③ 判断词要带块 */
   for (let i = 0; i < lines.length; i++) {
     const m = /^[ \t]*([A-Za-z_][A-Za-z0-9_]*)/.exec(lines[i]);
@@ -441,7 +456,7 @@ function lintText(text, ctx) {
 /* ---------- 悬停提示 ---------- */
 
 /* 一个 token 可能带多个类（如 typeParam + type），按语义优先级取第一个 */
-const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
+const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'coordRun', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
 
 const CLASS_LABEL = {
   declaration: '术式名',
@@ -662,6 +677,41 @@ function variableTip(name, binding, info) {
   return { label: '变量 ' + name, body: (BIND_KIND[binding.kind] || BIND_KIND['未定']) + '作用域到块末。' };
 }
 
+/* 坐标串：拆出每一轴的取值 */
+const WORLD_AXES = ['X（东西）', 'Y（上下）', 'Z（南北）'];
+const LOCAL_AXES = ['左（X）', '上（Y）', '前（Z）'];
+
+function parseCoord(text) {
+  const sign = text.charAt(0) === '~' ? '~' : '^';
+  const parts = text.split(/[ \t]+(?=[~^])/);
+  const values = [];
+  for (let i = 0; i < parts.length; i++) {
+    const m = /^[~^][ \t]*([-+]?\d+(?:\.\d+)?)?/.exec(parts[i]);
+    values.push(m && m[1] ? m[1] : '0');
+  }
+  return { sign: sign, values: values };
+}
+
+/* 相对坐标 ~：世界轴，最多省到 (X, Z)；局部坐标 ^：朝向三轴，必须写全 */
+function coordTip(text) {
+  const c = parseCoord(text);
+  const n = c.values.length;
+  if (c.sign === '~') {
+    if (n < 2) return { label: '相对坐标 ~（' + n + ' 轴）', body: '单独一个「~」不成坐标，至少要给 X 与 Z 两轴。' };
+    const names = n === 3 ? WORLD_AXES : (n === 2 ? [WORLD_AXES[0], WORLD_AXES[2]] : []);
+    const shown = [];
+    for (let i = 0; i < n; i++) shown.push((names[i] || ('第 ' + (i + 1) + ' 轴')) + ' ' + c.values[i]);
+    return {
+      label: '相对坐标 ~（' + n + ' 轴）',
+      body: '世界轴偏移，依次 ' + (n === 3 ? 'X、Y、Z' : 'X、Z（Y 省略）') + '：' + shown.join(' · ') + '。基准是发动位置，不随朝向变。'
+    };
+  }
+  if (n !== 3) return { label: '局部坐标 ^（' + n + ' 轴）', body: '局部坐标必须写全三轴（左／上／前），这里只有 ' + n + ' 个。' };
+  const shown = [];
+  for (let i = 0; i < 3; i++) shown.push(LOCAL_AXES[i] + ' ' + c.values[i]);
+  return { label: '局部坐标 ^（3 轴）', body: '受术者自身坐标系的偏移：' + shown.join(' · ') + '。基准是朝向，随朝向变。' };
+}
+
 /* 单个秩的定义：先找同名行，再找覆盖它的区间行（1–3 这类） */
 function rankDef(n, ranks) {
   if (!ranks) return '';
@@ -780,6 +830,7 @@ function tipForElement(el, info, ranks) {
   const code = el.closest ? el.closest('code[class*="language-EpXsC" i]') : null;
   const vars = code ? varTypesOf.get(code) : null;
   if (vars && vars.has(text)) { const vt = variableTip(text, vars.get(text), info); if (vt) return vt; }
+  if (cls === 'coordRun') return coordTip(text);
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
   if (cls === 'comment') return { label: '注释', body: '注释写作 /* … */；// 不用——/ 在术式里是相变，会同形歧义。' };
