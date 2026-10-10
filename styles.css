@@ -13,16 +13,28 @@ body {
   --epx-comment:  var(--text-faint);
   --epx-pretium:  var(--color-red);      /* 代价条款 */
   --epx-keyword:  var(--color-purple);   /* 判断词 · 术式关键词 */
-  --epx-verb:     var(--color-blue);     /* 谓词 · 术式名 */
-  --epx-element:  var(--color-cyan);     /* 元素码 · METOS */
+  --epx-verb:     var(--color-blue);     /* 谓词 · 谓词调用 */
+  --epx-decl:     var(--color-yellow);   /* 术式名（声明） */
+  --epx-element:  var(--color-cyan);     /* 元素码 */
+  --epx-type:     var(--color-cyan);     /* 类型名 · METOS · 参数类型 */
   --epx-unit:     var(--color-orange);   /* 单位 */
   --epx-number:   var(--color-orange);   /* 数值 */
   --epx-degree:   var(--color-pink);     /* 程度词 */
   --epx-axis:     var(--color-green);    /* 可缩放轴 */
-  --epx-label:    var(--color-blue);     /* 形参标签 */
   --epx-pointer:  var(--text-accent);    /* 指针 · 寻址 */
   --epx-operator: var(--text-muted);
   --epx-punct:    var(--text-faint);
+  --epx-paren:    var(--text-faint);     /* () 分组 · 实参表 */
+  --epx-bracket:  var(--color-cyan);     /* [] 列表 · 下标 · 秩 */
+  --epx-brace:    var(--text-muted);     /* {} 语块 */
+  --epx-rank:     var(--color-orange);   /* 秩区间 1..3 */
+  --epx-b2:       var(--color-pink);     /* 嵌套括号 第 2 层 */
+  --epx-b3:       var(--color-green);    /* 嵌套括号 第 3 层（再深轮回第 1 层） */
+}
+
+/* 浅色主题下 --color-yellow 太淡，压深一档保证可读 */
+body.theme-light {
+  --epx-decl: #8a6a00;
 }
 
 /* --------------------------------------------------------------------------
@@ -80,19 +92,26 @@ code[class*="language-EpXsC" i] .token.keyword { color: var(--epx-keyword); font
 code[class*="language-EpXsC" i] .token.predicate,
 code[class*="language-EpXsC" i] .token.function { color: var(--epx-verb); }
 
-code[class*="language-EpXsC" i] .token.declaration { color: var(--epx-verb); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.declaration { color: var(--epx-decl); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.element { color: var(--epx-element); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.type { color: var(--epx-type); }
 
 code[class*="language-EpXsC" i] .token.unit { color: var(--epx-unit); }
 code[class*="language-EpXsC" i] .token.number { color: var(--epx-number); }
+code[class*="language-EpXsC" i] .token.rankRange { color: var(--epx-rank); font-weight: 700; text-decoration: underline dotted; text-underline-offset: 0.15em; }
 code[class*="language-EpXsC" i] .token.degree { color: var(--epx-degree); font-style: italic; }
 code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
 
-code[class*="language-EpXsC" i] .token.label { color: var(--epx-label); font-style: italic; opacity: 0.9; }
 code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
+code[class*="language-EpXsC" i] .token.bracket { color: var(--epx-bracket); font-weight: 600; }
+code[class*="language-EpXsC" i] .token.paren { color: var(--epx-paren); }
+code[class*="language-EpXsC" i] .token.brace { color: var(--epx-brace); }
 code[class*="language-EpXsC" i] .token.punctuation { color: var(--epx-punct); }
+
+/* 嵌套括号：只有第 2 层起才换色，第 1 层保持各自的分类色 */
+code[class*="language-EpXsC" i] .token.epx-d2 { color: var(--epx-b2); }
+code[class*="language-EpXsC" i] .token.epx-d3 { color: var(--epx-b3); }
 
 /* --------------------------------------------------------------------------
    4. 导出／打印

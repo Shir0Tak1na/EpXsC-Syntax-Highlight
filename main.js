@@ -17,7 +17,8 @@ const CODE_SELECTOR = 'code[class*="language-EpXsC" i]';
 const DICT_PATH = '世界设定集/地域文化图鉴/语言/述无空语/述无空语词典.md';
 
 const FALLBACK = {
-  keyword: ['keal', 'keol', 'tam', 'dum', 'nisi', 'quan', 'vero', 'es', 'exo', 'lic', 'luss', 'solum', 'hauri', 're', 'ren', 'rea'],
+  /* 词典读不到时的兜底；in / om 这类词性易漏，一并钉死 */
+  keyword: ['keal', 'keol', 'tam', 'dum', 'nisi', 'quan', 'vero', 'es', 'exo', 'lic', 'luss', 'solum', 'hauri', 're', 'ren', 'rea', 'in', 'de', 'pro', 'om', 'post', 'nec'],
   degree: ['max', 'min', 'valde', 'magis', 'minus', 'parum', 'paulum', 'nimis'],
   predicate: ['plur', 'navis', 'apolus', 'expual', 'aepaus', 'movis', 'venis', 'retase'],
   unit: ['MUW', 'EUW', 'MU', 'miteas', 'kigrama', 'm', 's', 'kg']
@@ -25,7 +26,7 @@ const FALLBACK = {
 
 /* 词典小节 → 词类 */
 const SECTIONS = {
-  keyword: ['判断词', '助动词', '术式关键词'],
+  keyword: ['介词', '助动词', '判断词', '时间限定', '数量与范围限定', '指称限定', '顺序限定', '代词（人称）', '疑问词', '连接词与从句标记', '术式关键词'],
   degree: ['程度限定'],
   predicate: ['动词'],
   unit: ['单位']
@@ -33,6 +34,9 @@ const SECTIONS = {
 
 const ELEMENTS = ['Ert', 'Aqu', 'Flm', 'Wnd', 'Nut', 'Elc', 'Lum', 'Duk', 'Sar', 'Qen'];
 const AXES = ['vis', 'diu', 'celer', 'latus', 'altus', 'acutus', 'densus', 'gravis', 'levis'];
+
+/* 类型名（元素码另算，见 ELEMENTS）：域类型登记表，新类型加在这里 */
+const TYPES = ['METOS', 'locus'];
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -79,20 +83,33 @@ function makeGrammar(lists) {
     comment: /\/\*[\s\S]*?\*\//,
     annotation: /^[ \t]*\.[A-Za-z_][\w-]*(?:[ \t]+[^\n]*)?$/m,
     pretium: /\bpretium\b/i,
+    /* 秩区间：1..3、..10、2..（要求至少一边有数字，且后面不再跟点，避免吃掉省略号 ...） */
+    rankRange: /(?:\d+\.\.\d*|\d*\.\.\d+)(?!\.)/,
     number: /\b\d+(?:\.\d+)?\b/,
     unit: wordPattern(lists.unit),
     element: new RegExp('\\b(?:' + ELEMENTS.join('|') + ')\\b'),
-    type: /\bMETOS\b/,
+    type: new RegExp('\\b(?:' + TYPES.join('|') + ')\\b'),
+    /* 参数表里的类型位：紧跟在 ( 或 , 之后、后面是冒号的词（单个小写字母按变量名处理）。
+       用 Prism 的 lookbehind 写法，避免原生 (?<=) 在旧 iOS Safari 上解析即报错。 */
+    typeParam: {
+      pattern: /([(,]\s*)(?![a-z]\s*:)[A-Za-z_][A-Za-z0-9_]*(?=\s*:(?!:))/,
+      lookbehind: true,
+      alias: 'type'
+    },
     axis: wordPattern(AXES),
     degree: wordPattern(lists.degree),
     keyword: wordPattern(lists.keyword),
-    declaration: /\b[A-Z][A-Za-z0-9_]*(?=\s*\()/,
+    /* 术式名：大写开头且后面紧跟 ( { [ ，或下划线复合名（Gramakipo_Aepaus） */
+    declaration: /\b(?:[A-Z][A-Za-z0-9_]*(?=\s*[({\[])|[A-Z][A-Za-z0-9]*_[A-Za-z0-9_]+)/,
     predicate: wordPattern(lists.predicate),
     function: /\b[a-z][A-Za-z0-9_]*(?=\s*\()/,
-    label: /\b[A-Za-z_]\w*(?=:(?!:))/,
     pointer: /\*&|&|@/,
-    operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=)|\+|-|\*|\/|=|<|>|\^|~|\?|!/,
-    punctuation: /[{}()[\],;:]/
+    operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=|\.{2,3})|\+|-|\*|\/|=|<|>|\^|~|\?|!/,
+    /* 括号分三类：() 分组 · [] 方括号（列表 / 下标 / 秩）· {} 花括号（语块）；其余标点归 punctuation */
+    paren: /[()]/,
+    bracket: /[\[\]]/,
+    brace: /[{}]/,
+    punctuation: /[;:,]/
   };
 }
 
@@ -164,11 +181,30 @@ class EpXsCSyntaxPlugin extends Plugin {
     const Prism = window.Prism;
     if (!Prism) return;
     try {
-      Prism.highlightElement(code);
+      const text = code.textContent || '';
+      const found = /language-(\w+)/.exec(code.className || '');
+      const lang = found ? found[1] : 'EpXsC';
+      const grammar = Prism.languages[lang] || Prism.languages.EpXsC;
+      if (!grammar) return;
+      code.innerHTML = markBracketDepth(Prism.highlight(text, grammar, lang));
     } catch (err) {
       console.warn('[EpXsC Syntax]', err);
     }
   }
+}
+
+/* 逐层给括号打上 epx-d1 / d2 / d3（三层一循环，再深轮回第一层）。
+   Prism 是逐位置的词法分析，数不了层数，所以在这一步扫一遍它产出的 HTML。 */
+function markBracketDepth(html) {
+  let depth = 0;
+  return html.replace(/<span class="token ([a-z]+)">([\[\](){}])<\/span>/g, function (all, cls, ch) {
+    if (cls !== 'bracket' && cls !== 'paren' && cls !== 'brace') return all;
+    const isOpen = ch === '[' || ch === '(' || ch === '{';
+    if (isOpen) depth += 1;
+    else if (depth > 0) depth -= 1;
+    const level = isOpen ? depth : depth + 1;
+    return '<span class="token ' + cls + ' epx-d' + (((level - 1) % 3) + 1) + '">' + ch + '</span>';
+  });
 }
 
 module.exports = EpXsCSyntaxPlugin;
