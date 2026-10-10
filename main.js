@@ -1275,10 +1275,11 @@ class EpXsCSyntaxPlugin extends Plugin {
       const lang = found ? found[1] : 'EpXsC';
       const grammar = Prism.languages[lang] || Prism.languages.EpXsC;
       if (!grammar) return;
-      code.innerHTML = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
+      let html = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
       const vars = parseVarTypes(text, this.info);
       varTypesOf.set(code, vars);
       html = markVarUse(html, vars);
+      code.innerHTML = html;
       this.markUnknown(code);
       this.markNegation(code);
     } catch (err) {
