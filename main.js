@@ -298,6 +298,13 @@ function lintText(text, ctx) {
   const units = (ctx && ctx.units) || new Set();
   const keys = (ctx && ctx.keys) || new Set();
 
+  /* 日常句与术式的分界：句号「.」不参与术式（它是日常句的句号）。
+     含句号行的块按日常句对待：只查括号，不套术式的规矩。 */
+  let prose = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/\.\s*(\/\*.*)?$/.test(lines[i].replace(/[ \t]+$/, ""))) { prose = true; break; }
+  }
+
   /* ① 括号：配对、交叉、闭合（顺带跳过注释） */
   const stack = [];
   const pairOf = { ')': '(', ']': '[', '}': '{' };
@@ -320,8 +327,8 @@ function lintText(text, ctx) {
         else if (top.ch !== pairOf[ch]) push('error', i + 1, '括号对不上：这里是「' + ch + '」，但最近未闭合的是「' + top.ch + '」（第 ' + top.line + ' 行）');
       }
     }
-    /* ② 块头：行尾是冒号，下一行必须缩进更深 */
-    if (/:$/.test(clean.replace(/[ \t]+$/, '')) && clean.trim()) {
+    /* ② 块头：行尾是冒号，下一行必须缩进更深（日常句不套这条） */
+    if (!prose && /:$/.test(clean.replace(/[ \t]+$/, '')) && clean.trim()) {
       let j = i + 1;
       while (j < lines.length && !lines[j].trim()) j += 1;
       if (j >= lines.length) push('error', i + 1, '冒号开的块没有块体');
@@ -333,13 +340,6 @@ function lintText(text, ctx) {
     }
   }
   for (let i = 0; i < stack.length; i++) push('error', stack[i].line, '「' + stack[i].ch + '」没有闭合');
-
-  /* 日常句与术式的分界：句号「.」不参与术式（它是日常句的句号）。
-     含句号的块按日常句对待，只查括号，不套术式的规矩。 */
-  let prose = false;
-  for (let i = 0; i < lines.length; i++) {
-    if (/\.\s*(\/\*.*)?$/.test(lines[i].replace(/[ \t]+$/, ""))) { prose = true; break; }
-  }
   if (prose) return issues;
 
   /* ③ 判断词要带块 */
