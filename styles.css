@@ -25,11 +25,11 @@ body {
   --epx-operator: var(--text-muted);
   --epx-punct:    var(--text-faint);
   --epx-paren:    var(--text-faint);     /* () 分组 · 实参表 */
-  --epx-bracket:  var(--color-cyan);     /* [] 列表 · 下标 · 秩 */
+  --epx-bracket:  var(--text-muted);    /* [] 列表 · 下标 · 秩 —— 退路色；实际用第 3 节的柔和青 */
   --epx-brace:    var(--text-muted);     /* {} 语块 */
   --epx-rank:     var(--color-orange);   /* 秩区间 1..3 */
-  --epx-b2:       var(--color-pink);     /* 嵌套括号 第 2 层 */
-  --epx-b3:       var(--color-green);    /* 嵌套括号 第 3 层（再深轮回第 1 层） */
+  --epx-b2:       var(--text-muted);    /* 嵌套括号 第 2 层 —— 退路色；实际用第 3 节的柔和粉 */
+  --epx-b3:       var(--text-muted);    /* 嵌套括号 第 3 层 —— 退路色；实际用第 3 节的柔和绿 */
   --epx-variable: var(--color-pink);     /* 变量名（参数表里冒号后面那个词） */
   --epx-modifier: var(--color-purple);   /* 限定词 private／protected／public／const */
 }
@@ -113,14 +113,25 @@ code[class*="language-EpXsC" i] .token.modifier { color: var(--epx-modifier); fo
 code[class*="language-EpXsC" i] .token.declTarget { color: var(--epx-variable); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.varUse { color: var(--epx-variable); }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
-code[class*="language-EpXsC" i] .token.bracket { color: var(--epx-bracket); font-weight: 600; }
+/* 括号一族：朝弱化色混，保留嵌套分层但不再跳眼 —— 想更淡就调小百分数，想更亮就调大 */
+code[class*="language-EpXsC" i] .token.bracket {
+  color: var(--epx-bracket);
+  color: color-mix(in srgb, var(--color-cyan) 40%, var(--text-muted));
+  font-weight: 600;
+}
 code[class*="language-EpXsC" i] .token.paren { color: var(--epx-paren); }
 code[class*="language-EpXsC" i] .token.brace { color: var(--epx-brace); }
 code[class*="language-EpXsC" i] .token.punctuation { color: var(--epx-punct); }
 
 /* 嵌套括号：只有第 2 层起才换色，第 1 层保持各自的分类色 */
-code[class*="language-EpXsC" i] .token.epx-d2 { color: var(--epx-b2); }
-code[class*="language-EpXsC" i] .token.epx-d3 { color: var(--epx-b3); }
+code[class*="language-EpXsC" i] .token.epx-d2 {
+  color: var(--epx-b2);
+  color: color-mix(in srgb, var(--color-pink) 35%, var(--text-muted));
+}
+code[class*="language-EpXsC" i] .token.epx-d3 {
+  color: var(--epx-b3);
+  color: color-mix(in srgb, var(--color-green) 35%, var(--text-muted));
+}
 
 /* --------------------------------------------------------------------------
    5. 悬停提示（浮层由 main.js 生成，fixed 定位，不受代码块 overflow 裁剪）
