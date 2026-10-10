@@ -114,6 +114,32 @@ code[class*="language-EpXsC" i] .token.epx-d2 { color: var(--epx-b2); }
 code[class*="language-EpXsC" i] .token.epx-d3 { color: var(--epx-b3); }
 
 /* --------------------------------------------------------------------------
+   5. 悬停提示（浮层由 main.js 生成，fixed 定位，不受代码块 overflow 裁剪）
+   -------------------------------------------------------------------------- */
+.epx-tip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 340px;
+  padding: 7px 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-s);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.epx-tip.is-visible { opacity: 1; }
+.epx-tip .epx-tip-head { font-weight: 600; color: var(--text-accent); }
+.epx-tip .epx-tip-body { color: var(--text-muted); }
+
+code[class*="language-EpXsC" i] .token.epx-tip-host { cursor: help; }
+
+/* --------------------------------------------------------------------------
    4. 导出／打印
    -------------------------------------------------------------------------- */
 @media print {
