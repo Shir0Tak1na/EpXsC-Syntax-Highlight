@@ -23,8 +23,8 @@ body {
   --epx-axis:     var(--color-green);    /* 可缩放轴 */
   --epx-pointer:  var(--text-accent);    /* 指针 · 寻址 */
   --epx-operator: var(--text-muted);
-  --epx-punct:    var(--text-faint);
-  --epx-paren:    var(--text-faint);     /* () 分组 · 实参表 */
+  --epx-punct:    var(--text-muted);   /* 原为 faint：浅色下只有 2.1:1，太淡 */
+  --epx-paren:    var(--text-muted);   /* () 分组 · 实参表（同上一并提亮） */
   --epx-bracket:  var(--text-muted);    /* [] 列表 · 下标 · 秩 —— 退路色；实际用第 3 节的柔和青 */
   --epx-brace:    var(--text-muted);     /* {} 语块 */
   --epx-rank:     var(--color-orange);   /* 秩区间 1..3 */
@@ -99,9 +99,9 @@ code[class*="language-EpXsC" i] .token.function { color: var(--epx-verb); }
 code[class*="language-EpXsC" i] .token.declaration { color: var(--epx-decl); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.element { color: var(--epx-element); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.type { color: var(--epx-type); }
-code[class*="language-EpXsC" i] .token.variable { color: var(--epx-variable); font-style: italic; }
+code[class*="language-EpXsC" i] .token.variable { color: var(--epx-variable); font-weight: 600; }
 
-code[class*="language-EpXsC" i] .token.unit { color: var(--epx-unit); }
+code[class*="language-EpXsC" i] .token.unit { color: var(--epx-unit); font-style: italic; }
 code[class*="language-EpXsC" i] .token.number { color: var(--epx-number); }
 code[class*="language-EpXsC" i] .token.rankRange { color: var(--epx-rank); font-weight: 700; text-decoration: underline dotted; text-underline-offset: 0.15em; }
 code[class*="language-EpXsC" i] .token.degree { color: var(--epx-degree); font-style: italic; }
@@ -177,6 +177,40 @@ code[class*="language-EpXsC" i] .token.epx-unknown {
 .epx-lint-error .epx-lint-msg { color: var(--color-red); }
 .epx-lint-warn .epx-lint-msg { color: var(--color-orange); }
 
+/* --------------------------------------------------------------------------
+   浅色主题补正：白底上黄／青／橙／绿／粉／红偏淡（实测 1.9–4.1:1），
+   朝正文色压深到 ≥4.5:1。不支持 color-mix 的环境用前面的硬编码色。
+   -------------------------------------------------------------------------- */
+body.theme-light code[class*="language-EpXsC" i] .token.declaration {
+  color: #7e691f;
+  color: color-mix(in srgb, var(--color-yellow) 45%, var(--text-normal));
+}
+body.theme-light code[class*="language-EpXsC" i] .token.element,
+body.theme-light code[class*="language-EpXsC" i] .token.type {
+  color: #17797a;
+  color: color-mix(in srgb, var(--color-cyan) 50%, var(--text-normal));
+}
+body.theme-light code[class*="language-EpXsC" i] .token.unit,
+body.theme-light code[class*="language-EpXsC" i] .token.number,
+body.theme-light code[class*="language-EpXsC" i] .token.rankRange {
+  color: #a05b16;
+  color: color-mix(in srgb, var(--color-orange) 60%, var(--text-normal));
+}
+body.theme-light code[class*="language-EpXsC" i] .token.axis {
+  color: #197d44;
+  color: color-mix(in srgb, var(--color-green) 55%, var(--text-normal));
+}
+body.theme-light code[class*="language-EpXsC" i] .token.degree,
+body.theme-light code[class*="language-EpXsC" i] .token.variable,
+body.theme-light code[class*="language-EpXsC" i] .token.declTarget,
+body.theme-light code[class*="language-EpXsC" i] .token.varUse {
+  color: #c4387c;
+  color: color-mix(in srgb, var(--color-pink) 90%, var(--text-normal));
+}
+body.theme-light code[class*="language-EpXsC" i] .token.pretium {
+  color: #cd3145;
+  color: color-mix(in srgb, var(--color-red) 85%, var(--text-normal));
+}
 /* --------------------------------------------------------------------------
    4. 导出／打印
    -------------------------------------------------------------------------- */
