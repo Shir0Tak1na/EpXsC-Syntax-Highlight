@@ -1,0 +1,5 @@
+# 本插件没有构建步骤：main.js / styles.css 就是源码本身，必须入库。
+data.json
+.DS_Store
+Thumbs.db
+desktop.ini

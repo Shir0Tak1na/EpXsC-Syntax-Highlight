@@ -1,0 +1,106 @@
+/* ==========================================================================
+   EpXsC-Highlight.css —— 述无空语构造记号（EpXsC）语法高亮 · 配色层
+   --------------------------------------------------------------------------
+   配套插件：EpXsC Syntax（.obsidian/plugins/epxsc-syntax）
+   插件负责把代码切成 token，本文件只负责上色与外框。
+   颜色全部取自 Obsidian 主题变量，深浅主题自动适配；想换配色只改第 1 节。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 调色板
+   -------------------------------------------------------------------------- */
+body {
+  --epx-comment:  var(--text-faint);
+  --epx-pretium:  var(--color-red);      /* 代价条款 */
+  --epx-keyword:  var(--color-purple);   /* 判断词 · 术式关键词 */
+  --epx-verb:     var(--color-blue);     /* 谓词 · 术式名 */
+  --epx-element:  var(--color-cyan);     /* 元素码 · METOS */
+  --epx-unit:     var(--color-orange);   /* 单位 */
+  --epx-number:   var(--color-orange);   /* 数值 */
+  --epx-degree:   var(--color-pink);     /* 程度词 */
+  --epx-axis:     var(--color-green);    /* 可缩放轴 */
+  --epx-label:    var(--color-blue);     /* 形参标签 */
+  --epx-pointer:  var(--text-accent);    /* 指针 · 寻址 */
+  --epx-operator: var(--text-muted);
+  --epx-punct:    var(--text-faint);
+}
+
+/* --------------------------------------------------------------------------
+   2. 代码块外框（阅读视图与导出）
+   -------------------------------------------------------------------------- */
+pre:has(> code[class*="language-EpXsC" i]) {
+  position: relative;
+  padding: 1.1em 1.15em 1.15em;
+  background: var(--code-background);
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--text-accent);
+  border-radius: var(--radius-m);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+/* 右上角语言签 */
+pre:has(> code[class*="language-EpXsC" i])::before {
+  content: "EpXsC";
+  position: absolute;
+  inset: 0 0 auto auto;
+  padding: 0 0.7em;
+  font-family: var(--font-interface);
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1.8;
+  color: var(--text-on-accent);
+  background: var(--text-accent);
+  border-radius: 0 var(--radius-m) 0 var(--radius-s);
+  opacity: 0.85;
+  pointer-events: none;
+  user-select: none;
+}
+
+code[class*="language-EpXsC" i] {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  line-height: 1.65;
+  tab-size: 4;
+  color: var(--code-normal, var(--text-normal));
+  background: none;
+  padding: 0;
+  text-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. token 着色
+   -------------------------------------------------------------------------- */
+code[class*="language-EpXsC" i] .token.comment,
+code[class*="language-EpXsC" i] .token.annotation { color: var(--epx-comment); font-style: italic; }
+
+code[class*="language-EpXsC" i] .token.pretium { color: var(--epx-pretium); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.keyword { color: var(--epx-keyword); font-weight: 600; }
+
+code[class*="language-EpXsC" i] .token.predicate,
+code[class*="language-EpXsC" i] .token.function { color: var(--epx-verb); }
+
+code[class*="language-EpXsC" i] .token.declaration { color: var(--epx-verb); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.element { color: var(--epx-element); font-weight: 600; }
+code[class*="language-EpXsC" i] .token.type { color: var(--epx-type); }
+
+code[class*="language-EpXsC" i] .token.unit { color: var(--epx-unit); }
+code[class*="language-EpXsC" i] .token.number { color: var(--epx-number); }
+code[class*="language-EpXsC" i] .token.degree { color: var(--epx-degree); font-style: italic; }
+code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
+
+code[class*="language-EpXsC" i] .token.label { color: var(--epx-label); font-style: italic; opacity: 0.9; }
+code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
+code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
+code[class*="language-EpXsC" i] .token.punctuation { color: var(--epx-punct); }
+
+/* --------------------------------------------------------------------------
+   4. 导出／打印
+   -------------------------------------------------------------------------- */
+@media print {
+  pre:has(> code[class*="language-EpXsC" i]) {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  pre:has(> code[class*="language-EpXsC" i])::before { display: none; }
+}
