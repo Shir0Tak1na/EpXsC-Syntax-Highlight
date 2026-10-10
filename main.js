@@ -42,7 +42,7 @@ const ELEMENTS = ['Ert', 'Aqu', 'Flm', 'Wnd', 'Nut', 'Elc', 'Lum', 'Duk', 'Sar',
 const AXES = ['vis', 'diu', 'celer', 'latus', 'altus', 'acutus', 'densus', 'gravis', 'levis'];
 
 /* 类型名（元素码另算，见 ELEMENTS）：域类型登记表，新类型加在这里 */
-const TYPES = ['METOS', 'locus'];
+const TYPES = ['METOS', 'locus', 'siro'];
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -480,6 +480,11 @@ const EXTRA_WORDS = {
   in: { word: 'in', pos: '介词', meaning: '在……里（词典暂未收录，按术式用法补）', abbr: '' }
 };
 
+/* 个别类型词要补一句（词典释义只说词义，说不清它在类型里的职务） */
+const TYPE_NOTES = {
+  siro: '类型即 void（空缺）：可以用于声明变量，也可以直接占位 —— 作目标即无目标，作载体即无载体'
+};
+
 /* 词典小节 → 真正的词性／类别；没有对应项时原样用小节名 */
 const SECTION_POS = {
   '名词': '名词', '动词': '动词', '数词': '数词', '形容词': '形容词', '副词': '副词',
@@ -554,7 +559,7 @@ const SYMBOL_INFO = {
   '-': { label: '运算符 -', body: '减法。' },
   '*': { label: '运算符 *', body: '解引用：顺着引用取到那物本身；取地址用 &。' },
   '/': { label: '运算符 /', body: '除法；同时是相变记号，所以注释不用双斜线。' },
-  '?': { label: '占位符 ?', body: '自适应参数：值在发动时绑定——或由施术者当场指定，或由术式依情境自行适配。' },
+  '?': { label: '占位符 ?', body: '自适应参数：值在发动时绑定——或由施术者当场指定，或由术式依情境自行适配。作类型时表示「空缺（待定）」。' },
   '..': { label: '区间 ..', body: '两端都写是闭区间；只写上界表示不超过，只写下界表示自该处起；两端都是秩时即秩区间。' },
   '...': { label: '省略 ...', body: '列举未尽。' },
   ';': { label: '分号 ;', body: '子句分隔，与换行等价；只在同一行要分开子句时写。' },
@@ -789,7 +794,8 @@ function buildTip(cls, text, info, ranks) {
     : (CLASS_LABEL[cls] || SECTION_POS[entry.pos] || entry.pos || '词条');
   const raw = entry.abbr || '';
   const showAbbr = raw && raw !== '—' && raw !== '-' && raw.toLowerCase() !== String(text).toLowerCase();
-  return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning };
+  const note = TYPE_NOTES[String(text).toLowerCase()];
+  return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning + (note ? '；' + note : '') };
 }
 
 const varTypesOf = new WeakMap();
