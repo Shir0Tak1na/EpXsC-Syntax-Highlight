@@ -418,6 +418,28 @@ function bracketTip(kind) {
 }
 
 /* 参数表里的「类型: 变量名」→ 变量 → 类型（两种语序都认） */
+/* 从右侧写法推断这个变量是什么 */
+function inferKind(expr, known) {
+  const e = (expr || '').trim();
+  if (!e) return { kind: '未定' };
+  if (/^\*&/.test(e)) return { kind: '实体' };
+  if (/^&/.test(e)) return { kind: '地址' };
+  if (/^@/.test(e) || /^METOS\s*\[/.test(e)) return { kind: '对象集' };
+  if (/^\[/.test(e)) return { kind: '列表' };
+  if (/^\(/.test(e)) return { kind: '元组' };
+  if (/^\{/.test(e)) return { kind: '字典' };
+  if (/^\d/.test(e)) return { kind: '数值' };
+  const word = /^([A-Za-z_][A-Za-z0-9_]*)\s*([(=]?)/.exec(e);
+  if (word) {
+    const w = word[1];
+    if (ELEMENTS.indexOf(w) >= 0 || TYPES.indexOf(w) >= 0) return { kind: '元素或类型', ref: w };
+    if (word[2] === '(') return { kind: '调用' };
+    if (known && known.has(w)) return { kind: '同前', ref: w };
+  }
+  return { kind: '未定' };
+}
+
+/* 变量表：① 形参「类型: 变量名」（两种语序都认）；② 赋值 name = 表达式 按右侧推断 */
 function parseVarTypes(text, info) {
   const out = new Map();
   const isType = function (w) { return TYPES.indexOf(w) >= 0 || ELEMENTS.indexOf(w) >= 0; };
@@ -428,29 +450,57 @@ function parseVarTypes(text, info) {
       const p = parts[j].trim();
       let m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(p);
       if (m) {
-        if (isType(m[1]) && !isType(m[2])) out.set(m[2], m[1]);
-        else if (!isType(m[1]) && isType(m[2])) out.set(m[1], m[2]);
-        else if (m[1].length === 1) out.set(m[1], m[2]);
-        else out.set(m[2], m[1]);
+        if (isType(m[1]) && !isType(m[2])) out.set(m[2], { type: m[1] });
+        else if (!isType(m[1]) && isType(m[2])) out.set(m[1], { type: m[2] });
+        else if (m[1].length === 1) out.set(m[1], { type: m[2] });
+        else out.set(m[2], { type: m[1] });
         continue;
       }
       m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[[^\]]*?([A-Za-z_][A-Za-z0-9_]*)\s*\]$/.exec(p);
-      if (m) { out.set(m[2], m[1]); continue; }
+      if (m) { out.set(m[2], { type: m[1] }); continue; }
       m = /^\[[^\]]*?([A-Za-z_][A-Za-z0-9_]*)\s*\]\s*:\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(p);
-      if (m) { out.set(m[2], m[1]); continue; }
+      if (m) { out.set(m[2], { type: m[1] }); continue; }
     }
+  }
+  const assign = /(^|[;\n])[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*=(?!=)[ \t]*([^\n;]*)/g;
+  let a;
+  while ((a = assign.exec(text))) {
+    const name = a[2];
+    if (out.has(name)) continue;
+    out.set(name, inferKind(a[3], out));
   }
   return out;
 }
 
-function variableTip(name, typeWord, info) {
-  const entry = info && info.get(String(typeWord).toLowerCase());
-  let detail = '';
-  if (entry) detail = (entry.pos ? entry.pos + ' ' : '') + entry.meaning;
-  return { label: '变量 ' + name, body: '本块声明为 ' + typeWord + (detail ? '（' + detail + '）' : '') + '；作用域到块末' };
+/* 赋值绑定的类别说明（不举例子） */
+const BIND_KIND = {
+  '地址': '是个地址 —— & 取得的引用；设定里地址本身就是位置（第 1–3 秩）。',
+  '实体': '是顺着引用取回的那物本身。',
+  '对象集': '是目标对象集。',
+  '列表': '是列表容器。',
+  '元组': '是元组。',
+  '字典': '是字典／映射。',
+  '数值': '是数值。',
+  '调用': '取的是谓词调用的结果，类别由该谓词决定。',
+  '同前': '与右侧那个变量指同一物。',
+  '未定': '由 = 绑定，右侧写法未给出可判定的类别。'
+};
+
+function variableTip(name, binding, info) {
+  if (!binding) return null;
+  if (binding.type) {
+    const entry = info && info.get(String(binding.type).toLowerCase());
+    const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
+    return { label: '变量 ' + name, body: '形参，声明为 ' + binding.type + detail + '；作用域到块末。' };
+  }
+  if (binding.kind === '元素或类型') {
+    const entry = info && info.get(String(binding.ref || '').toLowerCase());
+    const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
+    return { label: '变量 ' + name, body: '取 ' + binding.ref + detail + ' 本身 —— 元素码与类型名既是类型，也是该类型的值；作用域到块末。' };
+  }
+  return { label: '变量 ' + name, body: (BIND_KIND[binding.kind] || BIND_KIND['未定']) + '作用域到块末。' };
 }
 
-/* 相邻单秩合成一段：7..9 → 第七、八、九秩的来历（秩表里只有单条时用） */
 function rankSpan(a, b, ranks) {
   const lo = parseInt(a, 10);
   const hi = parseInt(b, 10);
@@ -552,7 +602,7 @@ function tipForElement(el, info, ranks) {
   if (kind && (cls === 'bracket' || cls === 'paren' || cls === 'brace')) return bracketTip(kind);
   const code = el.closest ? el.closest('code[class*="language-EpXsC" i]') : null;
   const vars = code ? varTypesOf.get(code) : null;
-  if (vars && vars.has(text)) return variableTip(text, vars.get(text), info);
+  if (vars && vars.has(text)) { const vt = variableTip(text, vars.get(text), info); if (vt) return vt; }
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
   if (cls === 'comment') return { label: '注释', body: '注释写作 /* … */；// 不用——/ 在术式里是相变，会同形歧义。' };
