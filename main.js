@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.4';
+const BUILD = '1.23.5';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1333,8 +1333,13 @@ function tipForElement(el, info, ranks) {
   if (cls === 'coordRun') return coordTip(text);
   /* ^ 有两种含义：跟在元素码之后是相位阶位，其余是局部坐标 */
   if (cls === 'operator' && text === '^') {
-    const ph = phaseOf(el);
-    if (ph) return { label: '相位 eRk', body: '第 ' + (ph.n || 'n') + ' 阶（' + ph.elem + '）' };
+    /* ^ 本身：前面是元素码、后面跟数字，即为相位阶位 */
+    const prev = prevToken(el);
+    if (prev && prev.classList && prev.classList.contains('element')) {
+      const nx = nextToken(el);
+      const n = nx && nx.classList && nx.classList.contains('number') ? String(nx.textContent).trim() : '';
+      return { label: '相位 eRk', body: '第 ' + (n || 'n') + ' 阶（' + String(prev.textContent || '').trim() + '）' };
+    }
   }
   if (cls === 'number') {
     const ph = phaseOf(el);
