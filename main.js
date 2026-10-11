@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.2';
+const BUILD = '1.23.3';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -844,7 +844,7 @@ const EXTRA_WORDS = {
 
 /* 个别类型词要补一句（词典释义只说词义，说不清它在类型里的职务） */
 const TYPE_NOTES = {
-  siro: '类型即 void（空缺）：可以用于声明变量，也可以直接占位 —— 作目标即无目标，作载体即无载体'
+  siro: 'void：无目标／无载体，可声明变量或直接占位'
 };
 
 /* 词典小节 → 真正的词性／类别；没有对应项时原样用小节名 */
@@ -925,35 +925,35 @@ function bracketKinds(text) {
 
 /* 符号释义（取自术式语法 三、逻辑与运算 / 四、指针与寻址） */
 const SYMBOL_INFO = {
-  '!': { label: '运算符 !', body: '逻辑非，同 C；也可用助动词 ne。' },
-  '&&': { label: '运算符 &&', body: '逻辑与（合取）；术式里通常写作 kon。' },
-  '||': { label: '运算符 ||', body: '包含或；术式里通常写作 aut。' },
-  '^': { label: '运算符 ^', body: '局部坐标：沿受术者朝向的左／上／前三轴偏移，三轴必须写全。此符号在 C 中是位异或，由术式征用。' },
-  '~': { label: '运算符 ~', body: '相对坐标：沿世界轴的偏移，至少给 X 与 Z 两轴。此符号在 C 中是位非，由术式征用。' },
-  '==': { label: '运算符 ==', body: '相等（前后同一则同一）；亦有对应判断词 aude。' },
-  '!=': { label: '运算符 !=', body: '不等（比较）。' },
-  '<=': { label: '运算符 <=', body: '不超过（比较）。' },
-  '>=': { label: '运算符 >=', body: '不少于（比较）。' },
-  '<': { label: '运算符 <', body: '小于（比较）。' },
-  '>': { label: '运算符 >', body: '大于（比较）。' },
-  '=': { label: '赋值 =', body: '写入变量：块内绑定的变量作用域到块末。与系词 es（是／存在）分工不同。' },
-  '+=': { label: '复合算子 +=', body: '对术式自身的数值参数递增。' },
-  '-=': { label: '复合算子 -=', body: '对术式自身的数值参数递减；程度量也可用。' },
-  '*=': { label: '复合算子 *=', body: '对术式自身的数值参数按倍率缩放。' },
-  '/=': { label: '复合算子 /=', body: '对术式自身的数值参数按比例缩小。' },
-  '+': { label: '运算符 +', body: '加法。有实数的量可以写算式。' },
-  '-': { label: '运算符 -', body: '减法。' },
-  '*': { label: '运算符 *', body: '解引用：顺着引用取到那物本身；取地址用 &。' },
-  '/': { label: '运算符 /', body: '除法；同时是相变记号，所以注释不用双斜线。' },
-  '?': { label: '占位符 ?', body: '自适应参数：值在发动时绑定——或由施术者当场指定，或由术式依情境自行适配。作类型时表示「空缺（待定）」。' },
-  '..': { label: '区间 ..', body: '两端都写是闭区间；只写上界表示不超过，只写下界表示自该处起；两端都是秩时即秩区间。' },
-  '...': { label: '省略 ...', body: '列举未尽。' },
-  ';': { label: '分号 ;', body: '子句分隔，与换行等价；只在同一行要分开子句时写。' },
-  ',': { label: '逗号 ,', body: '并列：同一子句内的并列项；也用于分隔形参、相接量约束。' },
-  ':': { label: '冒号 :', body: '表「下一层开始」，作块头并与缩进配合；声明里则是「类型: 变量名」的分隔。' },
-  '&': { label: '取地址 &', body: '取得某物的引用。设定里地址本身就是位置（第 1–3 秩）。' },
-  '*&': { label: '取地址后解引用', body: '先取地址再顺着取回该物本身，合起来仍指那物本身。' },
-  '@': { label: '目标简写 @', body: '目标对象集的简写形式；全形为 METOS 加方括号。' }
+  '!': { label: '运算符 !', body: '逻辑非（同 C；亦可用 ne）' },
+  '&&': { label: '运算符 &&', body: '合取（常写作 kon）' },
+  '||': { label: '运算符 ||', body: '包含或（常写作 aut）' },
+  '^': { label: '运算符 ^', body: '局部坐标：受术者三轴，须写全' },
+  '~': { label: '运算符 ~', body: '相对坐标：世界轴偏移，至少 X、Z' },
+  '==': { label: '运算符 ==', body: '相等（亦有判断词 aude）' },
+  '!=': { label: '运算符 !=', body: '不等' },
+  '<=': { label: '运算符 <=', body: '不超过' },
+  '>=': { label: '运算符 >=', body: '不少于' },
+  '<': { label: '运算符 <', body: '小于' },
+  '>': { label: '运算符 >', body: '大于' },
+  '=': { label: '赋值 =', body: '写入变量（系词 es 表判断）' },
+  '+=': { label: '复合算子 +=', body: '数值参数递增' },
+  '-=': { label: '复合算子 -=', body: '数值参数递减' },
+  '*=': { label: '复合算子 *=', body: '数值参数按倍率缩放' },
+  '/=': { label: '复合算子 /=', body: '数值参数按比例缩小' },
+  '+': { label: '运算符 +', body: '加' },
+  '-': { label: '运算符 -', body: '减' },
+  '*': { label: '运算符 *', body: '解引用（取地址用 &）' },
+  '/': { label: '运算符 /', body: '除法；亦为相变' },
+  '?': { label: '占位符 ?', body: '值在发动时定；作类型表待定' },
+  '..': { label: '区间 ..', body: '两端为闭区间；亦可只写上界或下界' },
+  '...': { label: '省略 ...', body: '列举未尽' },
+  ';': { label: '分号 ;', body: '子句分隔（同换行）' },
+  ',': { label: '逗号 ,', body: '并列；亦分隔形参' },
+  ':': { label: '冒号 :', body: '下一层开始；亦分「类型: 变量」' },
+  '&': { label: '取地址 &', body: '取得引用（地址即位置）' },
+  '*&': { label: '取地址后解引用', body: '仍指该物本身' },
+  '@': { label: '目标简写 @', body: '全形为 METOS[…]' }
 };
 
 /* 方括号里装的是什么（提示与语法检查共用这一套判定） */
@@ -1067,10 +1067,10 @@ const BIND_KIND = {
 
 /* 限定词在提示里的说法（与 C 相当） */
 const MOD_INFO = {
-  priv: '限定词 priv（私有）：只在当前语块内可见，出块即不可见',
-  tut: '限定词 tut（受护）：本语块及其子块可见，外层不可见',
-  publ: '限定词 publ（公开）：整个术式内可见，可跨块使用',
-  consta: '限定词 consta（常数）：写入后不可再赋值'
+  priv: '私有：仅当前语块可见',
+  tut: '受护：本语块及子块可见',
+  publ: '公开：整个术式内可见',
+  consta: '常数：不可再赋值'
 };
 
 function variableTip(name, binding, info) {
@@ -1083,14 +1083,14 @@ function variableTip(name, binding, info) {
     const entry = info && info.get(String(binding.type).toLowerCase());
     const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
     const shape = binding.container ? '，' + binding.container + '容器，' + (binding.length ? '长度 ' + binding.length : '长度未定') : '';
-    return { label: '变量 ' + name, body: mod + '形参：类型 ' + binding.type + shape + detail + '；作用域到块末。' };
+    return { label: '变量 ' + name, body: mod + '类型 ' + binding.type + shape + detail };
   }
   if (binding.kind === '元素或类型') {
     const entry = info && info.get(String(binding.ref || '').toLowerCase());
     const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
-    return { label: '变量 ' + name, body: mod + '取 ' + binding.ref + detail + ' 本身 —— 元素码与类型名既是类型，也是该类型的值；作用域到块末。' };
+    return { label: '变量 ' + name, body: mod + '取 ' + binding.ref + detail + ' 本身' };
   }
-  return { label: '变量 ' + name, body: mod + (BIND_KIND[binding.kind] || BIND_KIND['未定']) + '作用域到块末。' };
+  return { label: '变量 ' + name, body: mod + (BIND_KIND[binding.kind] || BIND_KIND['未定']) };
 }
 
 /* ne 之后被否定的那段文字：顺着 DOM 兄弟节点走到子句边界 */
@@ -1129,19 +1129,19 @@ function coordTip(text) {
   const c = parseCoord(text);
   const n = c.values.length;
   if (c.sign === '~') {
-    if (n < 2) return { label: '相对坐标 ~（' + n + ' 轴）', body: '单独一个「~」不成坐标，至少要给 X 与 Z 两轴。' };
+    if (n < 2) return { label: '相对坐标 ~（' + n + ' 轴）', body: '至少给 X 与 Z' };
     const names = n === 3 ? WORLD_AXES : (n === 2 ? [WORLD_AXES[0], WORLD_AXES[2]] : []);
     const shown = [];
     for (let i = 0; i < n; i++) shown.push((names[i] || ('第 ' + (i + 1) + ' 轴')) + ' ' + c.values[i]);
     return {
       label: '相对坐标 ~（' + n + ' 轴）',
-      body: '世界轴偏移，依次 ' + (n === 3 ? 'X、Y、Z' : 'X、Z（Y 省略）') + '：' + shown.join(' · ') + '。基准是发动位置，不随朝向变。'
+      body: '世界轴：' + shown.join(' · ') + '（不随朝向变）'
     };
   }
-  if (n !== 3) return { label: '局部坐标 ^（' + n + ' 轴）', body: '局部坐标必须写全三轴（左／上／前），这里只有 ' + n + ' 个。' };
+  if (n !== 3) return { label: '局部坐标 ^（' + n + ' 轴）', body: '须写全三轴（左／上／前）' };
   const shown = [];
   for (let i = 0; i < 3; i++) shown.push(LOCAL_AXES[i] + ' ' + c.values[i]);
-  return { label: '局部坐标 ^（3 轴）', body: '受术者自身坐标系的偏移：' + shown.join(' · ') + '。基准是朝向，随朝向变。' };
+  return { label: '局部坐标 ^（3 轴）', body: '受术者三轴：' + shown.join(' · ') + '（随朝向变）' };
 }
 
 /* 单个秩的定义：先找同名行，再找覆盖它的区间行（1–3 这类） */
@@ -1185,14 +1185,14 @@ function buildTip(cls, text, info, ranks) {
         return ((p.modifiers || []).join(' ') ? (p.modifiers || []).join(' ') + ' ' : '') + (p.type ? p.type + ':' : '') + p.name;
       });
       return { label: (cls === 'spellRef' ? '术式引用' : '术式声明') + '：' + text,
-        body: '可见性 ' + vis + (ps.length ? '；形参（' + ps.length + '）' + ps.join('、') : '；无形参') + (rec.file ? '；登记于 ' + String(rec.file).split('/').pop() : '') };
+        body: (rec.visibility ? rec.visibility : '默认') + (ps.length ? ' · 形参 ' + ps.length + '：' + ps.join('、') : ' · 无形参') };
     }
-    if (cls === 'spellRef') return { label: '术式引用：' + text, body: '未登记 —— 《魔法》登记表里没有这个术式' };
+    if (cls === 'spellRef') return { label: '术式引用：' + text, body: '未登记' };
   }  if (cls === 'element') {
     const e = info.get(String(text)) || info.get(String(text).toLowerCase());
     const mean = e && e.meaning ? e.meaning : '';
     return { label: '元素码：' + text,
-      body: (mean ? mean + '；' : '') + '元素码是类变量：既是类型，也是该类型的唯一取值（第一章定义 1.3）；有地址而无空间坐标（第四章）' };
+      body: (mean ? mean + ' · ' : '') + '类变量（单例）' };
   }
   if (cls === 'rankRange') {
     const m = /^(\d*)\.\.(\d*)$/.exec(text);
@@ -1201,10 +1201,10 @@ function buildTip(cls, text, info, ranks) {
     if (a && b) {
       const span = ranks.get(a + '–' + b) || rankSpan(a, b, ranks);
       if (span) return { label: '秩 ' + a + '–' + b, body: span };
-      return { label: '区间 ' + a + '–' + b, body: '距离、角度、量值等都用这个写法；两端都是秩时才显示秩的构成' };
+      return { label: '区间 ' + a + '–' + b, body: '距离／角度／量值' };
     }
-    if (b) return { label: '至 ' + b, body: '只写上界：表示不超过该数（含）。' };
-    if (a) return { label: '自 ' + a + ' 起', body: '只写下界：表示自该处起（含）。' };
+    if (b) return { label: '至 ' + b, body: '不超过该数（含）' };
+    if (a) return { label: '自 ' + a + ' 起', body: '自该处起（含）' };
     return { label: '区间', body: '术式里的 .. 区间写法' };
   }
   if (cls === 'bracket') return { label: '方括号', body: '列表 ／ 下标 ／ 秩' };
@@ -1221,7 +1221,7 @@ function buildTip(cls, text, info, ranks) {
   const raw = entry.abbr || '';
   const showAbbr = raw && raw !== '—' && raw !== '-' && raw.toLowerCase() !== String(text).toLowerCase();
   const note = TYPE_NOTES[String(text).toLowerCase()];
-  return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning + (note ? '；' + note : '') };
+  return { label: head, body: entry.meaning + (note ? '；' + note : '') };
 }
 
 const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}";
@@ -1307,14 +1307,14 @@ function tipForElement(el, info, ranks) {
     const shown = scope.length > 24 ? scope.slice(0, 24) + '…' : scope;
     return {
       label: '前置否定 ne',
-      body: '等同「!」（逻辑非）：否定紧跟其后的成分' + (shown ? ' —— ' + shown : '') + '。在筛选键里即「取反」。'
+      body: '否定其后成分（同 !）' + (shown ? '：' + shown : '')
     };
   }
   if (cls === 'coordRun') return coordTip(text);
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
-  if (cls === 'comment') return { label: '注释', body: '注释写作 /* … */；// 不用——/ 在术式里是相变，会同形歧义。' };
-  if (cls === 'annotation') return { label: '注解行', body: '行首以 . 开头的注解行，不参与解析。' };
+  if (cls === 'comment') return { label: '注释', body: '/* … */；// 不用（/ 是相变）' };
+  if (cls === 'annotation') return { label: '注解行', body: '. 开头，不参与解析' };
   const group = el.closest ? el.closest('.token.indexGroup, .token.indexDecl') : null;
   if (group && cls === 'number') {
     const n = String(text).trim();
@@ -1328,7 +1328,7 @@ function tipForElement(el, info, ranks) {
   const tip = buildTip(cls, text, info, ranks);
   if (tip) return tip;
   if (cls === 'word' && text.length >= 4 && !/[0-9]/.test(text)) {
-    return { label: '未入典', body: '《述无空语词典》里还没有这个词条；写进去之后，着色与释义会自动跟上。' };
+    return { label: '未入典', body: '词典里没有这个词条' };
   }
   return null;
 }
