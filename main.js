@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.19.0';
+const BUILD = '1.19.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1252,7 +1252,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     /* 代码块处理器：Obsidian 的公开稳定 API（Mermaid／Dataview 同一条路），
        阅读视图与实时预览都会走它。实时预览里代码块本就「光标不在其中时渲染、进去显示源码」，
        所以这条路上色不需要碰 CodeMirror，也不受 CM6 版本变动影响。 */
-    const renderBlock = function (source, el) {
+    const renderBlock = function (source, el, ctx) {
       try {
         if (el && el.empty) el.empty();
         else if (el) el.textContent = '';
@@ -1261,6 +1261,21 @@ class EpXsCSyntaxPlugin extends Plugin {
         code.className = 'language-EpXsC';
         code.textContent = source;
         pre.appendChild(code);
+        /* 实时预览里，被「代码块处理器」渲染出来的块是一个部件：点它不会自动回到源码。
+           这里自己把光标送进块首，于是点一下就能编辑；阅读视图不动（那里 mode 不是 source）。 */
+        pre.style.cursor = 'text';
+        pre.addEventListener('click', function () {
+          try {
+            const view = self.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!view || !view.getMode || view.getMode() !== 'source' || !view.editor) return;
+            const info = ctx && ctx.getSectionInfo ? ctx.getSectionInfo(el) : null;
+            if (!info || typeof info.lineStart !== 'number') return;
+            const last = (typeof info.lineEnd === 'number') ? info.lineEnd : info.lineStart + 1;
+            const line = Math.min(info.lineStart + 1, last);
+            view.editor.setCursor({ line: line, ch: 0 });
+            view.editor.focus();
+          } catch (e) { /* 光标送不进去就算了，不影响渲染 */ }
+        });
         el.appendChild(pre);
         self.highlightOne(code);
       } catch (err) {
