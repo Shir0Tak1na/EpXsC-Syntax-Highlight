@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.18.6';
+const BUILD = '1.18.7';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -319,7 +319,7 @@ function makeGrammar(lists) {
     negPrefix: /\bne(?=[ \t]+[A-Za-z_&*@?(\[])/i,
     /* 声明目标：赋值语句左边的那个名字（前面可带限定词） */
     declTarget: {
-      pattern: /((?:^|[;\n])[ \t]*(?:(?:priv|tut|publ|consta|om|tot)[ \t]+)?)([A-Za-z_][A-Za-z0-9_]*)(?=[ \t]*=(?!=))/,
+      pattern: /((?:^|[;\n])[ \t]*(?:(?:priv|tut|publ|consta|om|tot)[ \t]+)*)([A-Za-z_][A-Za-z0-9_]*)(?=[ \t]*=(?!=))/,
       lookbehind: true
     },
     /* 判断词（if／elif／else 一族）与术式关键词（块内条款）各自一色 */
@@ -355,6 +355,70 @@ const BASE_LISTS = {
   predicate: FALLBACK.predicate.slice(),
   unit: FALLBACK.unit.slice()
 };
+
+/* ---------- 自带词法着色：不依赖 Obsidian 内部的 window.Prism ----------
+   与 Prism 同构的取用规则：在所有规则里取「最早出现」的那个；同一位置先列出的优先；
+   lookbehind 规则的内容从第 1 组之后算起；inside 规则的内容再递归切一遍；alias 追加附加类名。
+   整条规则天然贪婪（匹配到就整体吃掉，内部不再切）—— coordRun 这类正是要这个行为。 */
+const GLOBAL_RE_CACHE = new WeakMap();
+function asGlobalRe(re) {
+  if (re.global) return re;
+  let g = GLOBAL_RE_CACHE.get(re);
+  if (!g) { g = new RegExp(re.source, re.flags + 'g'); GLOBAL_RE_CACHE.set(re, g); }
+  return g;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function tokenizeText(text, grammar) {
+  let out = '';
+  let pos = 0;
+  while (pos < text.length) {
+    let best = null;
+    for (const name in grammar) {
+      const rule = grammar[name];
+      const pattern = (rule instanceof RegExp) ? rule : (rule && rule.pattern);
+      if (!(pattern instanceof RegExp)) continue;
+      const re = asGlobalRe(pattern);
+      const lb = !(rule instanceof RegExp) && rule.lookbehind;
+      /* lookbehind 规则要从头扫：它的「标签前缀」可能落在已扫描过的位置
+         （如 (locus: zone 里的 variable 需要看见那个左括号），但只接受内容在当前位之后的匹配 */
+      re.lastIndex = lb ? 0 : pos;
+      let m = re.exec(text);
+      let index = 0;
+      let content = '';
+      if (m) {
+        index = m.index;
+        content = m[0];
+        if (lb && m[1]) { index += m[1].length; content = m[0].slice(m[1].length); }
+        if (lb && index < pos) {
+          /* 找到的匹配在当前位置之前 —— 继续往后找 */
+          let guard = 0;
+          while (m && index < pos && guard < 200) {
+            re.lastIndex = index + content.length;
+            m = re.exec(text);
+            if (!m) break;
+            index = m.index; content = m[0];
+            if (m[1]) { index += m[1].length; content = m[0].slice(m[1].length); }
+            guard += 1;
+          }
+        }
+      }
+      if (!m || !content) continue;
+      if (index < pos) continue;
+      if (!best || index < best.index) best = { index: index, content: content, name: name, rule: rule };
+    }
+    if (!best) { out += escHtml(text.slice(pos)); break; }
+    if (best.index > pos) out += escHtml(text.slice(pos, best.index));
+    const rule = best.rule;
+    let inner = escHtml(best.content);
+    if (!(rule instanceof RegExp) && rule.inside) inner = tokenizeText(best.content, rule.inside);
+    const cls = best.name + (!(rule instanceof RegExp) && rule.alias ? ' ' + rule.alias : '');
+    out += '<span class="token ' + cls + '">' + inner + '</span>';
+    pos = best.index + best.content.length;
+  }
+  return out;
+}
 
 /* ---------- 语法检查 ---------- */
 
@@ -777,13 +841,14 @@ function parseVarTypes(text, info) {
       if (m) { out.set(m[2], { type: m[1], container: '列表', length: '' }); continue; }
     }
   }
-  const assign = new RegExp('(^|[;\\n])[ \\t]*((?:(?:' + MODIFIERS.join('|') + ')[ \\t]+)?)([A-Za-z_][A-Za-z0-9_]*)[ \\t]*=(?!=)[ \\t]*([^\\n;]*)', 'g');
+  const assign = new RegExp('(^|[;\\n])[ \\t]*((?:(?:' + MODIFIERS.join('|') + ')[ \\t]+)*)([A-Za-z_][A-Za-z0-9_]*)[ \\t]*=(?!=)[ \\t]*([^\\n;]*)', 'g');
   let a;
   while ((a = assign.exec(text))) {
     const name = a[3];
     if (out.has(name)) continue;
     const binding = inferKind(a[4], out);
-    binding.modifier = (a[2] || '').trim().toLowerCase();
+    binding.modifiers = (a[2] || '').trim().toLowerCase().split(/[ \t]+/).filter(Boolean);
+    binding.modifier = binding.modifiers.length ? binding.modifiers[binding.modifiers.length - 1] : '';
     out.set(name, binding);
   }
   return out;
@@ -813,7 +878,10 @@ const MOD_INFO = {
 
 function variableTip(name, binding, info) {
   if (!binding) return null;
-  const mod = (binding.modifier && MOD_INFO[binding.modifier]) ? MOD_INFO[binding.modifier] + '；' : '';
+  const mods = binding.modifiers || (binding.modifier ? [binding.modifier] : []);
+  const modParts = [];
+  for (let mi = 0; mi < mods.length; mi++) if (MOD_INFO[mods[mi]]) modParts.push(MOD_INFO[mods[mi]]);
+  const mod = modParts.length ? modParts.join('；') + '；' : '';
   if (binding.type) {
     const entry = info && info.get(String(binding.type).toLowerCase());
     const detail = entry ? '（' + (entry.pos ? entry.pos + ' ' : '') + entry.meaning + '）' : '';
@@ -1362,6 +1430,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     } catch (e) { /* 忽略 */ }
     add('- 当前视图：**' + mode + '**');
     add('- 词表：词条 ' + this.info.size + ' · 词根 ' + (this.roots ? this.roots.size : '-') + ' · 秩 ' + this.ranks.size + ' · 谓词 ' + this.grammar.predicate.source.length + ' 字符');
+    add('- 自带切词器：已装（不依赖 window.Prism）');
     add('- Prism：' + (window.Prism ? '有' : '**没有**') + ' · 语法 EpXsC：' + (window.Prism && window.Prism.languages && window.Prism.languages.EpXsC ? '已装' : '**缺失**'));
     add('');
     const codes = document.querySelectorAll('code[class*="language-EpXsC" i]');
@@ -1546,9 +1615,8 @@ class EpXsCSyntaxPlugin extends Plugin {
      也可能被 Obsidian 的 Prism 初始化覆盖掉注册的语法。
      这里确认两件事：语法还在不在、该上色的块有没有 token。 */
   ensureRendered() {
-    const Prism = window.Prism;
-    if (!Prism || !Prism.languages) return;
-    if (Prism.languages.EpXsC !== this.grammar) this.install();
+    /* 自带切词器，不需要 window.Prism；若 Obsidian 恰好有 Prism，顺手把语法也注册上去 */
+    if (window.Prism && window.Prism.languages && window.Prism.languages.EpXsC !== this.grammar) this.install();
     const nodes = document.querySelectorAll(CODE_SELECTOR);
     for (let i = 0; i < nodes.length; i++) {
       const code = nodes[i];
@@ -1559,18 +1627,15 @@ class EpXsCSyntaxPlugin extends Plugin {
   }
 
   highlightOne(code) {
-    const Prism = window.Prism;
-    if (!Prism) return;
     try {
       const text = code.textContent || '';
       const found = /language-(\w+)/.exec(code.className || '');
-      const lang = found ? found[1] : 'EpXsC';
       /* 样式选的是 language-EpXsC：万一 Obsidian 没给这个 class，token 会出来但不上色。
          补一个，让着色不悬在外部 class 上。 */
       if (!found && code.classList) code.classList.add('language-EpXsC');
-      const grammar = Prism.languages[lang] || Prism.languages.EpXsC;
+      const grammar = this.grammar;
       if (!grammar) return;
-      let html = markBracketDepth(Prism.highlight(text, grammar, lang), bracketKinds(text));
+      let html = markBracketDepth(tokenizeText(text, grammar), bracketKinds(text));
       const vars = parseVarTypes(text, this.info);
       varTypesOf.set(code, vars);
       html = markVarUse(html, vars);
