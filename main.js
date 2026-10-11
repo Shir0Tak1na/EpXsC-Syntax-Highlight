@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.22.1';
+const BUILD = '1.23.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -550,6 +550,9 @@ function lintText(text, ctx) {
   const clauseRank = function (line) {
     const t = line.replace(/\/\*[\s\S]*?\*\//g, '').trim();
     if (!t || t === '}' || t === '{') return 0;
+    /* 协议条款及其四个条目：排在能量与特性标记之后（第十五章） */
+    if (/^protocol\b/.test(t)) return 8;
+    if (/^(?:(?:priv|tut|publ|consta)[	 ]+)?(clav|grad|frequent)[	 ]*:/.test(t)) return 8;
     if (/\{$/.test(t)) return 1;                                   /* 头行：载体制 ＋ 术式名 ＋ 对象 */
     if (/^limit\s*:/.test(t)) return 2;
     if (/^pretium\s*:/.test(t)) return 3;
@@ -572,7 +575,7 @@ function lintText(text, ctx) {
     const r = clauseRank(l);
     if (r === 0) { li += 1; continue; }
     if (r < lastRank) {
-      push('warn', li + 1, '条款次序：应为 载体制 → 对象 → 限制 → 代价 → 触发 → 效果 → 能量（第 ' + lastRankLine + ' 行之后再出现更靠前的条款）');
+      push('warn', li + 1, '条款次序：应为 载体制 → 对象 → 限制 → 代价 → 触发 → 效果 → 能量 → 协议（第 ' + lastRankLine + ' 行之后再出现更靠前的条款）');
       break;
     }
     lastRank = r;
