@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.20.2';
+const BUILD = '1.20.3';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1725,7 +1725,8 @@ class EpXsCSyntaxPlugin extends Plugin {
     const file = view.file;
     const text = await this.app.vault.cachedRead(file);
     const re = /^[ \t]*\x60\x60\x60EpXsC[ \t]*\r?\n([\s\S]*?)^[ \t]*\x60\x60\x60[ \t]*$/gm;
-    const ctx = { info: this.info, units: this.units, keys: this.keys };
+    /* 带上术式登记表与当前笔记路径：越权检查要按「同一文件且同一行范围」判定 */
+    const ctx = { info: this.info, units: this.units, keys: this.keys, spells: this.spells, path: file.path };
     let m;
     let blocks = 0;
     const issues = [];
