@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.22.0';
+const BUILD = '1.22.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -614,6 +614,25 @@ function lintText(text, ctx) {
       const wordCmp = /(^|[^A-Za-z_])(aude|kon|aut|dis|ne|vero|re|exo)([^A-Za-z_]|$)/.test(body);
       if (!symbolCmp && !wordCmp) {
         push('warn', items[k].line, '限制条款（limit）里的每一条都应当是判定式 —— 比较式（如 <= 66 miteas）或词形判定（aude 相等／kon 合取／aut 包含或／dis 互斥或／ne 否定）');
+      }
+    }
+  }
+
+  /* solum：不带意志谱，不得以施术者意志（voluntas）作连接条件 */
+  for (let i = 0; i < lines.length; i++) {
+    if (!/(^|[^A-Za-z_])solum([^A-Za-z_]|$)/.test(lines[i])) continue;
+    /* 向上找最近的块开头，向下找配对的收尾 */
+    let top = i;
+    for (let j = i; j >= 0; j--) { if (/\{[ \t]*$/.test(lines[j].replace(/\/\*[\s\S]*?\*\//g, '').trimEnd())) { top = j; break; } }
+    let depth = 0, bottom = lines.length - 1;
+    for (let j = top; j < lines.length; j++) {
+      const t = lines[j];
+      for (let c = 0; c < t.length; c++) { if (t.charAt(c) === '{') depth += 1; else if (t.charAt(c) === '}') depth -= 1; }
+      if (depth <= 0 && j >= top) { bottom = j; break; }
+    }
+    for (let j = top; j <= bottom; j++) {
+      if (/^[ \t]*limit[ \t]*:/.test(lines[j]) && /(^|[^A-Za-z_])voluntas([^A-Za-z_]|$)/.test(lines[j])) {
+        push('warn', j + 1, '声明了 solum 的术式不带意志谱：不能以施术者意志（voluntas）作为连接条件（代价在制作时付出，不受此限）');
       }
     }
   }
