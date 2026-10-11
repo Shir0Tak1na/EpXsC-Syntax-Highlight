@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.20.3';
+const BUILD = '1.21.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -327,6 +327,7 @@ function makeGrammar(lists) {
     clause: wordPattern(lists.clause),
     keyword: wordPattern(lists.keyword),
     /* 术式名：大写开头且后面紧跟 ( { [ ，或下划线复合名（Gramakipo_Aepaus） */
+    className: { pattern: /(\bclass[ \t]+)([A-Z][A-Za-z0-9_]*)/, lookbehind: true, alias: 'declaration' },
     declaration: /\b(?:[A-Z][A-Za-z0-9_]*(?=\s*[({\[])|[A-Z][A-Za-z0-9]*_[A-Za-z0-9_]+)/,
     predicate: wordPattern(lists.predicate),
     function: /\b[a-z][A-Za-z0-9_]*(?=\s*\()/,
@@ -336,6 +337,7 @@ function makeGrammar(lists) {
       pattern: /(?:~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+|(?:\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+/,
       greedy: true
     },
+    classOp: { pattern: /::/, alias: 'operator' },
     operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=|\.{2,3})|\+|-|\*|\/|=|<|>|\^|~|\?|!/,
     /* 括号分三类：() 分组 · [] 方括号（列表 / 下标 / 秩）· {} 花括号（语块）；其余标点归 punctuation */
     paren: /[()]/,
@@ -560,7 +562,7 @@ function lintText(text, ctx) {
      文档里常把一个代码块用来并列对比几种写法，那种片段块没有头行，不查，免得误报。 */
   let firstLine = '';
   for (let k = 0; k < lines.length; k++) { if (lines[k].trim()) { firstLine = lines[k].trim(); break; } }
-  const isSpell = /\{$/.test(firstLine) || /^De\b/.test(firstLine);
+  const isSpell = !/^\s*class\b/.test(firstLine) && (/\{$/.test(firstLine) || /^De\b/.test(firstLine));   /* class 体不是术式的条款序列 */
   let lastRank = 0;
   let lastRankLine = 0;
   let li = 0;
@@ -724,6 +726,7 @@ function lintText(text, ctx) {
       let m;
       while ((m = callRe.exec(raw))) {
         const name = m[1];
+        if (raw.slice(Math.max(0, m.index - 2), m.index) === '::') continue;   /* 类成员调用，不是术式引用 */
         const rec = spells.get(name);
         if (!rec) { push('warn', i + 1, '引用了未登记的术式「' + name + '」'); continue; }
         if (rec.visibility === 'priv' || rec.visibility === 'tut') {
