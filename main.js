@@ -49,12 +49,13 @@ const ELEMENTS = ['Ert', 'Aqu', 'Flm', 'Wnd', 'Nut', 'Elc', 'Lum', 'Duk', 'Sar',
 const AXES = ['vis', 'diu', 'celer', 'latus', 'altus', 'acutus', 'densus', 'gravis', 'levis'];
 
 /* 类型名（元素码另算，见 ELEMENTS）：域类型登记表，新类型加在这里 */
-const TYPES = ['METOS', 'locus', 'siro'];
+/* 类型词：见《术式语法》第九章定义 9.5。兼作术式关键词或筛选键的词不列在此（免得被它们先吃掉） */
+const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'forma', 'sonus'];
 /* 作用域／可见性限定词：写在变量名前，解析赋值时要跳过它们 */
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.5';
+const BUILD = '1.24.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -283,10 +284,13 @@ function wordsFrom(map, names, fallback) {
   return Array.from(new Set(out));
 }
 
-function makeGrammar(lists) {
+function makeGrammar(lists, keys) {
+  const keyList = Array.isArray(keys) ? keys.slice() : [];
   return {
     comment: /\/\*[\s\S]*?\*\//,
     annotation: /^[ \t]*\.[A-Za-z_][\w-]*(?:[ \t]+[^\n]*)?$/m,
+    /* 频段标签：协议里 frequent: #… 的 # 之后，直到条目结束（, ; } 或换行） */
+    freqTag: /#[^\n,;}]*/,
     /* 变量名：紧跟「类型:」的那个词（含 [2:变量] 这类位数写法）。
        必须排在 type / number 之前——否则冒号左边先被它们吃掉，右边这个词就轮不到这里了。 */
     variable: {
@@ -317,12 +321,18 @@ function makeGrammar(lists) {
     /* 秩区间：1..3、..10、2..（要求至少一边有数字，且后面不再跟点，避免吃掉省略号 ...） */
     rankRange: /(?:\d+\.\.\d*|\d*\.\.\d+)(?!\.)/,
     number: /\b\d+(?:\.\d+)?\b/,
+    /* 筛选键：genus= / intervall( 这类。放在 declTarget 之前 —— 否则行首的 genus= 会被当成赋值目标 */
+    filterKey: { pattern: new RegExp('\\b(?:' + keyList.map(escapeWord).join('|') + ')\\b(?=[ \\t]*[=(])', 'i'), },
+    /* 筛选值：ordin= 的三个取值（见第五章筛选键表：proxim 近／procul 远／temer 随机） */
+    filterValue: /\b(?:proxim|procul|temer)\b/i,
     /* 限定词：作用域与可见性（与 C 的 private／protected／public／const 相当）。
        放在 unit／predicate 之前 —— tut 这类词兼作动词，靠「后面跟着一个名字」区分 */
     modifier: /\b(?:priv|tut|publ|consta)\b(?=[ \t]+[A-Za-z_])/,
     unit: wordPattern(lists.unit),
     element: new RegExp('\\b(?:' + ELEMENTS.join('|') + ')\\b'),
     type: new RegExp('\\b(?:' + TYPES.join('|') + ')\\b'),
+    /* 字典的键：{k: v} 里紧跟 { 或 , 的词。排在 typeParam 之前，免得 diu 这类词被当成类型形参 */
+    dictKey: { pattern: /([{,][ \t]*)([a-z][A-Za-z0-9_]*)(?=[ \t]*:)/, lookbehind: true },
     /* 参数表里的类型位：紧跟在 ( 或 , 之后、后面是冒号的词（单个小写字母按变量名处理）。
        用 Prism 的 lookbehind 写法，避免原生 (?<=) 在旧 iOS Safari 上解析即报错。 */
     typeParam: {
@@ -344,11 +354,13 @@ function makeGrammar(lists) {
     clause: wordPattern(lists.clause),
     keyword: wordPattern(lists.keyword),
     /* 术式名：大写开头且后面紧跟 ( { [ ，或下划线复合名（Gramakipo_Aepaus） */
-    className: { pattern: /(\bclass[ \t]+)([A-Z][A-Za-z0-9_]*)/, lookbehind: true, alias: 'declaration' },
+    /* 类名：Class::member 里 :: 前那个名字（排在 declaration 之前，否则被当成术式名） */
+    classUse: { pattern: /[A-Z][A-Za-z0-9_]*(?=[ \t]*::)/, alias: 'className' },
+    className: { pattern: /(\bclass[ \t]+)([A-Z][A-Za-z0-9_]*)/, lookbehind: true, alias: 'className' },
     declaration: /\b(?:[A-Z][A-Za-z0-9_]*(?=\s*[({\[])|[A-Z][A-Za-z0-9]*_[A-Za-z0-9_]+)/,
     predicate: wordPattern(lists.predicate),
     function: /\b[a-z][A-Za-z0-9_]*(?=\s*\()/,
-    pointer: /\*&|&|@/,
+    pointer: /\*&|&|@[A-Za-z][A-Za-z0-9_]*|@/,
     /* 坐标串：同一符号连写两个以上才算坐标（~ 世界轴 / ^ 朝向前三轴） */
     coordRun: {
       pattern: /(?:~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+~(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+|(?:\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)(?:[ \t]+\^(?:[ \t]*[-+]?\d+(?:\.\d+)?)?)+/,
@@ -824,6 +836,11 @@ const CLASS_LABEL = {
   declTarget: '声明目标',
   negPrefix: '前置否定',
   declaration: '术式名',
+  className: '类名',
+  filterKey: '筛选键',
+  filterValue: '筛选值',
+  dictKey: '字典键',
+  freqTag: '频段标签',
   spellRef: '术式引用',
   predicate: '谓词',
   function: '谓词调用',
@@ -1175,6 +1192,11 @@ function rankSpan(a, b, ranks) {
 }
 
 /* 纯函数：给定 token 类别与文本，返回 { label, body } 或 null（不给提示） */
+/* 这些词虽登记在《词典》的「术式关键词」节，却不是条款 —— 悬停标签要分开 */
+const WORD_KIND = {
+  class: '语法词', hered: '语法词', campus: '结界类',
+  protocol: '协议条款', clav: '协议条目', frequent: '协议条目', erk: '相位'
+};
 function buildTip(cls, text, info, ranks) {
   /* 术式引用：登记表里有就说明可见性与形参，没有就点明未登记 */
   if (cls === 'spellRef' || cls === 'declaration') {
@@ -1209,14 +1231,14 @@ function buildTip(cls, text, info, ranks) {
   if (cls === 'bracket') return { label: '方括号', body: '列表 ／ 下标 ／ 秩' };
   if (cls === 'paren') return { label: '圆括号', body: '元组 · 分组 · 实参表' };
   if (cls === 'brace') return { label: '花括号', body: '语块（兼作字典／映射）' };
-  if (cls === 'pointer') return { label: '指针', body: '& 取地址 · * 顺着引用取到实体 · @ 目标简写' };
+  if (cls === 'pointer') return { label: '指针', body: '& 取地址 · * 解引用 · @ 目标简写' };
   if (cls === 'declaration') return { label: '术式名', body: '本术式的声明名，后面跟参数表与语块' };
   if (!info) return null;
   const entry = info.get(String(text).toLowerCase());
   if (!entry) return null;
-  const head = entry.kind
+  const head = WORD_KIND[String(text).toLowerCase()] || (entry.kind
     ? '词根·' + entry.kind
-    : (CLASS_LABEL[cls] || SECTION_POS[entry.pos] || entry.pos || '词条');
+    : (CLASS_LABEL[cls] || SECTION_POS[entry.pos] || entry.pos || '词条'));
   const raw = entry.abbr || '';
   const showAbbr = raw && raw !== '—' && raw !== '-' && raw.toLowerCase() !== String(text).toLowerCase();
   const note = TYPE_NOTES[String(text).toLowerCase()];
@@ -1673,7 +1695,8 @@ class EpXsCSyntaxPlugin extends Plugin {
        只按词性反推会漏掉它 */
     keyWords.forEach(function (k) { keySet.add(String(k).toLowerCase()); });
     info.forEach(function (v, k) { if (v.pos === '筛选键') keySet.add(String(k).toLowerCase()); });
-    this.grammar = makeGrammar(lists);
+    this.grammar = makeGrammar(lists, Array.from(keyWords));
+    /* 语法层用词（class／hered／campus／protocol／clav／frequent／eRk）另立名目，别一律叫「条款」 */
     this.install();
     console.log('[EpXsC Syntax] 词条 ' + info.size + ' · 词根 ' + roots.size + ' · 秩 ' + ranks.size + '（' + (lists.predicate.length) + ' 个谓词）');
     await Promise.race([

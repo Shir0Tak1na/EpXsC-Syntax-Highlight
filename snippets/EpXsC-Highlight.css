@@ -115,6 +115,18 @@ code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
 code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.coordRun { color: var(--text-muted); font-weight: 600; text-decoration: underline dotted var(--text-faint); text-underline-offset: 0.2em; }
 code[class*="language-EpXsC" i] .token.modifier { color: var(--epx-modifier); font-style: italic; font-weight: 600; }
+
+/* 筛选键（第五章）：genus= / intervall( 这类语义选择子 */
+code[class*="language-EpXsC" i] .token.filterKey { color: var(--epx-axis); font-weight: 600; }
+/* 筛选值：ordin= 的取值 */
+code[class*="language-EpXsC" i] .token.filterValue { color: var(--epx-axis); font-style: italic; }
+/* 字典的键：{k: v} 里的 k */
+code[class*="language-EpXsC" i] .token.dictKey { color: var(--epx-type); }
+/* 频段标签：frequent: #… */
+code[class*="language-EpXsC" i] .token.freqTag { color: var(--epx-keyword); font-style: italic; }
+/* 类名：class X 与 X::member */
+code[class*="language-EpXsC" i] .token.className { color: var(--epx-decl); font-weight: 700; }
+
 code[class*="language-EpXsC" i] .token.declTarget { color: var(--epx-variable); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.varUse { color: var(--epx-variable); }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
@@ -191,7 +203,8 @@ body.theme-light code[class*="language-EpXsC" i] .token.declaration {
   color: color-mix(in srgb, var(--color-yellow) 45%, var(--text-normal));
 }
 body.theme-light code[class*="language-EpXsC" i] .token.element,
-body.theme-light code[class*="language-EpXsC" i] .token.type {
+body.theme-light code[class*="language-EpXsC" i] .token.type,
+body.theme-light code[class*="language-EpXsC" i] .token.dictKey {
   color: #17797a;
   color: color-mix(in srgb, var(--color-cyan) 50%, var(--text-normal));
 }
