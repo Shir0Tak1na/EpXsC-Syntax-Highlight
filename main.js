@@ -1181,6 +1181,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     for (const w in EXTRA_WORDS) info.set(w, EXTRA_WORDS[w]);
     const roots = new Map();
     const extraUnits = [];
+    const keyWords = new Set();
     let lists = null;
     let ranks = new Map();
 
@@ -1209,12 +1210,16 @@ class EpXsCSyntaxPlugin extends Plugin {
       const syntaxFile = this.app.vault.getAbstractFileByPath(SYNTAX_PATH);
       if (syntaxFile instanceof TFile) {
         const syntaxText = await this.app.vault.cachedRead(syntaxFile);
-        mergeInto(info, parseFilterKeys(syntaxText));
+        const keyMap = parseFilterKeys(syntaxText);
+        mergeInto(info, keyMap);
+        keyMap.forEach(function (v, k) { keyWords.add(String(k).toLowerCase()); });
         const unitMap = parseUnits(syntaxText);
         mergeInto(info, unitMap);
         unitMap.forEach(function (v) { extraUnits.push(v.word); });
       } else {
-        mergeInto(info, builtinMap('keys'));
+        const keyMap = builtinMap('keys');
+        mergeInto(info, keyMap);
+        keyMap.forEach(function (v, k) { keyWords.add(String(k).toLowerCase()); });
         mergeInto(info, builtinMap('units'));
       }
 
@@ -1258,7 +1263,10 @@ class EpXsCSyntaxPlugin extends Plugin {
     for (let i = 0; i < lists.unit.length; i++) this.units.add(String(lists.unit[i]).toLowerCase());
     this.keys = new Set();
     const keySet = this.keys;
-    info.forEach(function (v, k) { if (v.pos === '筛选键') keySet.add(k); });
+    /* 以《术式语法》的筛选键表为准：同一个词也可能另有词性（如 limit 兼作术式关键词），
+       只按词性反推会漏掉它 */
+    keyWords.forEach(function (k) { keySet.add(String(k).toLowerCase()); });
+    info.forEach(function (v, k) { if (v.pos === '筛选键') keySet.add(String(k).toLowerCase()); });
     this.grammar = makeGrammar(lists);
     this.install();
     console.log('[EpXsC Syntax] 词条 ' + info.size + ' · 词根 ' + roots.size + ' · 秩 ' + ranks.size + '（' + (lists.predicate.length) + ' 个谓词）');
