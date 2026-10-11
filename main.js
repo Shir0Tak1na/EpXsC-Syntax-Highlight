@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.20.0';
+const BUILD = '1.20.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -741,10 +741,13 @@ function lintText(text, ctx) {
         if (close < 0) continue;
         const args = splitTop(raw.slice(open + 1, close));
         const params = rec.params || [];
-        const required = params.filter(function (p) { return (p.modifiers || []).indexOf('priv') < 0; }).length;
-        const hasPubl = params.some(function (p) { return (p.modifiers || []).indexOf('publ') >= 0; });
+        /* 只有显式 publ／consta 的形参才算「必须由调用方给出」；不写限定词的形参不苛求 */
+        const required = params.filter(function (p) {
+          const m = p.modifiers || [];
+          return m.indexOf('publ') >= 0 || m.indexOf('consta') >= 0;
+        }).length;
         if (args.length > params.length) push('warn', i + 1, '「' + name + '」形参 ' + params.length + ' 个，这里给了 ' + args.length + ' 个');
-        else if (hasPubl && args.length < required) push('warn', i + 1, '「' + name + '」有必须给出的 publ 形参（应 ' + required + ' 个，这里 ' + args.length + ' 个）');
+        else if (required > 0 && args.length < required) push('warn', i + 1, '「' + name + '」有必须给出的 publ／consta 形参（应 ' + required + ' 个，这里 ' + args.length + ' 个）');
         for (let a = 0; a < args.length; a++) {
           const lbl = /^([A-Za-z_][A-Za-z0-9_]*)[ \t]*:/.exec(args[a]);
           if (!lbl) continue;
