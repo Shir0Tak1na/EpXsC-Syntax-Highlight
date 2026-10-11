@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.25.0';
+const BUILD = '1.25.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -725,7 +725,8 @@ function lintText(text, ctx) {
 
   /* ⑤ 功率口径不得写锁存 */
   for (let i = 0; i < lines.length; i++) {
-    if (/\bluss\b/i.test(lines[i]) && /\b(MUW|EUW)\b/.test(lines[i])) {
+    const bare = lines[i].replace(/\/\*[\s\S]*?\*\//g, '');   /* 先去注释：注释里提「不写 luss」不算写 */
+    if (/\bluss\b/i.test(bare) && /\b(MUW|EUW)\b/.test(bare)) {
       push('error', i + 1, '写 MUW／EUW 即持续发动（功率口径），不得再写 luss（锁存）');
     }
   }
