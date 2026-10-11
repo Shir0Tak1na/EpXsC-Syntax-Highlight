@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.3';
+const BUILD = '1.23.4';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1191,8 +1191,7 @@ function buildTip(cls, text, info, ranks) {
   }  if (cls === 'element') {
     const e = info.get(String(text)) || info.get(String(text).toLowerCase());
     const mean = e && e.meaning ? e.meaning : '';
-    return { label: '元素码：' + text,
-      body: (mean ? mean + ' · ' : '') + '类变量（单例）' };
+    return { label: '元素码：' + text, body: (mean ? mean + ' · ' : '') + '类变量（单例）' };
   }
   if (cls === 'rankRange') {
     const m = /^(\d*)\.\.(\d*)$/.exec(text);
@@ -1292,6 +1291,27 @@ function hideTip() {
 }
 
 /* 阅读视图：命中 token 就按它的类别给提示；括号看语境，变量看本块声明 */
+/* 相邻的 token 兄弟节点（跳过空白文本） */
+function prevToken(el) {
+  let n = el ? el.previousSibling : null;
+  while (n && !(n.nodeType === 1 && n.classList && n.classList.contains('token'))) n = n.previousSibling;
+  return n;
+}
+function nextToken(el) {
+  let n = el ? el.nextSibling : null;
+  while (n && !(n.nodeType === 1 && n.classList && n.classList.contains('token'))) n = n.nextSibling;
+  return n;
+}
+/* 形如 元素^n 的阶位：返回 { elem, n }，否则 null */
+function phaseOf(el) {
+  const caret = prevToken(el);
+  if (!caret || !caret.classList || !caret.classList.contains('operator') || String(caret.textContent).trim() !== '^') return null;
+  const elem = prevToken(caret);
+  if (!elem || !elem.classList || !elem.classList.contains('element')) return null;
+  const nx = nextToken(caret);
+  return { elem: String(elem.textContent || '').trim(), n: nx && nx.classList && nx.classList.contains('number') ? String(nx.textContent || '').trim() : '' };
+}
+
 function tipForElement(el, info, ranks) {
   let cls = pickClass(el.classList);
   if (cls === 'declTarget' || cls === 'varUse') cls = 'variable';
@@ -1311,6 +1331,15 @@ function tipForElement(el, info, ranks) {
     };
   }
   if (cls === 'coordRun') return coordTip(text);
+  /* ^ 有两种含义：跟在元素码之后是相位阶位，其余是局部坐标 */
+  if (cls === 'operator' && text === '^') {
+    const ph = phaseOf(el);
+    if (ph) return { label: '相位 eRk', body: '第 ' + (ph.n || 'n') + ' 阶（' + ph.elem + '）' };
+  }
+  if (cls === 'number') {
+    const ph = phaseOf(el);
+    if (ph) return { label: '相位 eRk', body: '第 ' + String(text).trim() + ' 阶（' + ph.elem + '）' };
+  }
   const sym = SYMBOL_INFO[text];
   if (sym && (cls === 'operator' || cls === 'punctuation' || cls === 'pointer')) return sym;
   if (cls === 'comment') return { label: '注释', body: '/* … */；// 不用（/ 是相变）' };
