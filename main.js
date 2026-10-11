@@ -1143,6 +1143,21 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.registerDomEvent(document, 'mouseout', hideTip);
     this.registerDomEvent(document, 'scroll', hideTip, true);
     this.addCommand({
+      id: 'reload-self',
+      name: '重载 EpXsC 插件（等于关掉再打开）',
+      callback: function () {
+        const app = self.app;
+        const id = self.manifest.id;
+        setTimeout(function () {
+          try {
+            Promise.resolve(app.plugins.disablePlugin(id)).then(function () {
+              return app.plugins.enablePlugin(id);
+            }).then(function () { new Notice('EpXsC 已重载'); });
+          } catch (e) { new Notice('重载失败：' + (e && e.message)); }
+        }, 80);
+      }
+    });
+    this.addCommand({
       id: 'diagnose',
       name: 'EpXsC 诊断报告（写进库根目录，便于整段复制）',
       callback: function () { self.diagnose(); }
@@ -1290,7 +1305,10 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.grammar = makeGrammar(lists);
     this.install();
     console.log('[EpXsC Syntax] 词条 ' + info.size + ' · 词根 ' + roots.size + ' · 秩 ' + ranks.size + '（' + (lists.predicate.length) + ' 个谓词）');
-    await this.ensureStyles();
+    await Promise.race([
+      this.ensureStyles(),
+      new Promise(function (resolve) { window.setTimeout(function () { resolve('样式步骤超时，跳过'); }, 2000); })
+    ]);
     this.rehighlight();
   }
 
@@ -1315,7 +1333,10 @@ class EpXsCSyntaxPlugin extends Plugin {
     let css = '';
     try {
       const dir = (this.manifest && this.manifest.dir) || '.obsidian/plugins/epxsc-syntax';
-      css = await this.app.vault.adapter.read(dir + '/styles.css');
+      css = await Promise.race([
+        this.app.vault.adapter.read(dir + '/styles.css'),
+        new Promise(function (resolve) { window.setTimeout(function () { resolve(''); }, 1500); })
+      ]);
     } catch (e) { css = ''; }
     let from = '外部样式表没生效：已把 styles.css 注入页面';
     if (!css || css.indexOf('.epx-tip') < 0) { css = FALLBACK_CSS; from = '外部样式表没生效：已注入内置配色'; }
