@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.18.8';
+const BUILD = '1.19.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -361,6 +361,8 @@ const BASE_LISTS = {
    lookbehind 规则的内容从第 1 组之后算起；inside 规则的内容再递归切一遍；alias 追加附加类名。
    整条规则天然贪婪（匹配到就整体吃掉，内部不再切）—— coordRun 这类正是要这个行为。 */
 const GLOBAL_RE_CACHE = new WeakMap();
+/* 超过这个行数就整块不着色 */
+const MAX_HIGHLIGHT_LINES = 50;
 function asGlobalRe(re) {
   if (re.global) return re;
   let g = GLOBAL_RE_CACHE.get(re);
@@ -1247,6 +1249,28 @@ class EpXsCSyntaxPlugin extends Plugin {
       for (let i = 0; i < LANG_KEYS.length; i++) delete Prism.languages[LANG_KEYS[i]];
     });
     this.registerMarkdownPostProcessor(function (el) { self.highlightIn(el); });
+    /* 代码块处理器：Obsidian 的公开稳定 API（Mermaid／Dataview 同一条路），
+       阅读视图与实时预览都会走它。实时预览里代码块本就「光标不在其中时渲染、进去显示源码」，
+       所以这条路上色不需要碰 CodeMirror，也不受 CM6 版本变动影响。 */
+    const renderBlock = function (source, el) {
+      try {
+        if (el && el.empty) el.empty();
+        else if (el) el.textContent = '';
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.className = 'language-EpXsC';
+        code.textContent = source;
+        pre.appendChild(code);
+        el.appendChild(pre);
+        self.highlightOne(code);
+      } catch (err) {
+        console.warn('[EpXsC Syntax] 代码块渲染失败：', err);
+        if (el && el.createEl) el.createEl('pre', { text: source });
+      }
+    };
+    this.registerMarkdownCodeBlockProcessor('EpXsC', renderBlock);
+    this.registerMarkdownCodeBlockProcessor('epxsc', renderBlock);
+    this.registerMarkdownCodeBlockProcessor('EPXSC', renderBlock);
     this.registerEvent(this.app.vault.on('modify', function (file) {
       if (!file) return;
       if (file.path === DICT_PATH || file.path === SYNTAX_PATH || file.path === RANK_PATH) self.refresh();
@@ -1629,6 +1653,11 @@ class EpXsCSyntaxPlugin extends Plugin {
   highlightOne(code) {
     try {
       const text = code.textContent || '';
+      /* 50 行以上不着色：再长也看不清，还会拖慢输入 */
+      if ((text.match(/\n/g) || []).length >= MAX_HIGHLIGHT_LINES) {
+        if (code.classList) code.classList.add('language-EpXsC');
+        return;
+      }
       const found = /language-(\w+)/.exec(code.className || '');
       /* 样式选的是 language-EpXsC：万一 Obsidian 没给这个 class，token 会出来但不上色。
          补一个，让着色不悬在外部 class 上。 */
