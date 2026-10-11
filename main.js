@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.0';
+const BUILD = '1.23.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -552,7 +552,7 @@ function lintText(text, ctx) {
     if (!t || t === '}' || t === '{') return 0;
     /* 协议条款及其四个条目：排在能量与特性标记之后（第十五章） */
     if (/^protocol\b/.test(t)) return 8;
-    if (/^(?:(?:priv|tut|publ|consta)[	 ]+)?(clav|grad|frequent)[	 ]*:/.test(t)) return 8;
+    if (/^(?:(?:priv|tut|publ|consta)[	 ]+)?(clav|eRk|frequent)[	 ]*:/.test(t)) return 8;
     if (/\{$/.test(t)) return 1;                                   /* 头行：载体制 ＋ 术式名 ＋ 对象 */
     if (/^limit\s*:/.test(t)) return 2;
     if (/^pretium\s*:/.test(t)) return 3;
