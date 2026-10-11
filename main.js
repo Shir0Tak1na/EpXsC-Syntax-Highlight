@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.26.0';
+const BUILD = '1.27.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -766,6 +766,17 @@ function lintText(text, ctx) {
     }
   }
   /* ⑨ 术式引用：未登记 / 越权 / 形参不符 / consta 被改写 */
+  /* 本块的 impo 名单：写进去的名字视为「他处定义」，不再报未登记 */
+  const imported = [];
+  for (let i = 0; i < lines.length; i++) {
+    const im = /^[ \t]*impo[ \t]+([^;\n]*)/.exec(lines[i]);
+    if (!im) continue;
+    const names = im[1].split(',');
+    for (let k = 0; k < names.length; k++) {
+      const nm = names[k].trim();
+      if (nm) imported.push(nm);
+    }
+  }
   const spells = (ctx && ctx.spells) || spellRegistry;
   if (spells && spells.size) {
     const splitTop = function (s) {
@@ -793,7 +804,12 @@ function lintText(text, ctx) {
         const name = m[1];
         if (raw.slice(Math.max(0, m.index - 2), m.index) === '::') continue;   /* 类成员调用，不是术式引用 */
         const rec = spells.get(name);
-        if (!rec) { push('warn', i + 1, '引用了未登记的术式「' + name + '」'); continue; }
+        if (!rec) {
+          /* impo 声明过的：他处定义，本处只借签名（第十二章规则 12.6），不算未登记 */
+          if (imported.indexOf(name) >= 0) continue;
+          push('warn', i + 1, '引用了未登记的术式「' + name + '」—— 若它定义在他处，请在块首写 impo ' + name + ';');
+          continue;
+        }
         if (rec.visibility === 'priv' || rec.visibility === 'tut') {
           const inside = i + 1 >= rec.line && i + 1 <= rec.endLine;
           if (!inside) push('warn', i + 1, '「' + name + '」是 ' + rec.visibility + '，只允许在自己的语块内引用');
