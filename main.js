@@ -627,15 +627,17 @@ function pickClass(classList) {
 /* 已声明的变量，用在哪儿都按变量着色（C 风格：同名同色） */
 function markVarUse(html, vars) {
   if (!vars || !vars.size) return html;
+  /* 块内已声明的变量，出现在哪儿都按变量着色 —— 包括词性与术式关键词重名的
+     （metos 既是《词典》里的「对象、目标」，也常被当形参名用）。
+     只改「词」类 span：type／element／number 这些有明确语法身份的不动。 */
+  const CLAIMABLE = 'word|clause|judge|predicate|function|degree|axis|unit';
   vars.forEach(function (binding, name) {
     if (!name) return;
-    const safe = name.replace(/[^A-Za-z0-9_]/g, '\\/* 每对括号分别是什么：元组 / 列表 / 秩 / 位数 / 字典（语块）/ 参数表 … */');
-    html = html.replace(new RegExp('<span class="token word( [^"]*)?">' + safe + '</span>', 'g'), '<span class="token varUse$1">' + name + '</span>');
+    const safe = name.replace(/[^A-Za-z0-9_]/g, '\\$&');
+    html = html.replace(new RegExp('<span class="token (?:' + CLAIMABLE + ')( [^"]*)?">' + safe + '</span>', 'g'), '<span class="token varUse$1">' + name + '</span>');
   });
   return html;
 }
-
-/* 每对括号分别是什么：元组 / 列表 / 秩 / 位数 / 字典（语块）/ 参数表 … */
 function bracketKinds(text) {
   const src = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\.[^\n]*$/gm, '');
   const out = [];
