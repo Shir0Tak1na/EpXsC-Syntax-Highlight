@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.19.1';
+const BUILD = '1.19.2';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -273,7 +273,7 @@ function makeGrammar(lists) {
     /* 变量名：紧跟「类型:」的那个词（含 [2:变量] 这类位数写法）。
        必须排在 type / number 之前——否则冒号左边先被它们吃掉，右边这个词就轮不到这里了。 */
     variable: {
-      pattern: /([([,][ \t]*[A-Za-z0-9_]+:[ \t]*)([A-Za-z_][A-Za-z0-9_]*)/,
+      pattern: /([([,][ \t]*(?:(?:priv|tut|publ|consta)[ \t]+)*[A-Za-z0-9_]+:[ \t]*(?:(?:priv|tut|publ|consta)[ \t]+)*)([A-Za-z_][A-Za-z0-9_]*)/,
       lookbehind: true
     },
     /* 位数声明组：[2:名] —— 冒号前是位数、冒号后是变量名（列表容器的声明） */
@@ -828,12 +828,19 @@ function parseVarTypes(text, info) {
     const parts = scopes[i].slice(1, -1).split(',');
     for (let j = 0; j < parts.length; j++) {
       const p = parts[j].trim();
-      let m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)$/.exec(p);
+      /* 形参：类型 : [限定词…] 变量名 —— 限定词既可写在类型之前，也可写在变量名之前（等价） */
+      let m = /^((?:(?:priv|tut|publ|consta)[ \t]+)*)([A-Za-z_][A-Za-z0-9_]*)\s*:\s*((?:(?:priv|tut|publ|consta)[ \t]+)*)([A-Za-z_][A-Za-z0-9_]*)$/.exec(p);
       if (m) {
-        if (isType(m[1]) && !isType(m[2])) out.set(m[2], { type: m[1] });
-        else if (!isType(m[1]) && isType(m[2])) out.set(m[1], { type: m[2] });
-        else if (m[1].length === 1) out.set(m[1], { type: m[2] });
-        else out.set(m[2], { type: m[1] });
+        const ty = m[2];
+        const name = m[4];
+        const mods = ((m[1] || '') + ' ' + (m[3] || '')).trim().toLowerCase().split(/[ \t]+/).filter(Boolean);
+        let binding;
+        if (isType(ty) && !isType(name)) binding = { type: ty };
+        else if (!isType(ty) && isType(name)) binding = { type: name };
+        else if (ty.length === 1) binding = { type: name };
+        else binding = { type: ty };
+        if (mods.length) { binding.modifiers = mods; binding.modifier = mods[mods.length - 1]; }
+        out.set(name, binding);
         continue;
       }
       m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[[^\]]*?(\d+)?\s*:?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\]$/.exec(p);
