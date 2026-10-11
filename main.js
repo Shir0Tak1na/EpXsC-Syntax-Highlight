@@ -396,6 +396,52 @@ function lintText(text, ctx) {
   for (let i = 0; i < stack.length; i++) push('error', stack[i].line, '「' + stack[i].ch + '」没有闭合');
   if (prose) return issues;
 
+  /* 条款次序：载体制 → 对象 → 限制 → 代价 → 触发 → 效果 → 能量 */
+  const lead = function (s) { return (s.match(/^[ \t]*/) || [''])[0].length; };
+  const clauseRank = function (line) {
+    const t = line.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    if (!t || t === '}' || t === '{') return 0;
+    if (/\{$/.test(t)) return 1;                                   /* 头行：载体制 ＋ 术式名 ＋ 对象 */
+    if (/^limit\s*:/.test(t)) return 2;
+    if (/^pretium\s*:/.test(t)) return 3;
+    if (/^(keal|keol|tam|dum|nisi|quan)\b/.test(t)) return 4;
+    if (/^(luss\b|[?(]|\d)/.test(t) && /\b(MUW|EUW|MU|EU)\b/.test(t)) return 6;
+    if (/^(solum|hauri)\b/.test(t)) return 7;
+    return 5;                                                      /* 效果 */
+  };
+  /* 只查「真术式」：首行是头行（… { 或 De …）的块才检查顺序。
+     文档里常把一个代码块用来并列对比几种写法，那种片段块没有头行，不查，免得误报。 */
+  let firstLine = '';
+  for (let k = 0; k < lines.length; k++) { if (lines[k].trim()) { firstLine = lines[k].trim(); break; } }
+  const isSpell = /\{$/.test(firstLine) || /^De\b/.test(firstLine);
+  let lastRank = 0;
+  let lastRankLine = 0;
+  let li = 0;
+  while (isSpell && li < lines.length) {
+    const l = lines[li];
+    if (!l.trim()) { li += 1; continue; }
+    const r = clauseRank(l);
+    if (r === 0) { li += 1; continue; }
+    if (r < lastRank) {
+      push('warn', li + 1, '条款次序：应为 载体制 → 对象 → 限制 → 代价 → 触发 → 效果 → 能量（第 ' + lastRankLine + ' 行之后再出现更靠前的条款）');
+      break;
+    }
+    lastRank = r;
+    lastRankLine = li + 1;
+    /* 只有以冒号开块的条款（limit : ／ keal … : ／ pretium :）才跳过它的缩进体；
+       头行（… {）不跳 —— 块内的条款正是要检查的对象 */
+    const opensBlock = /:[ \t]*$/.test(l.replace(/\/\*[\s\S]*?\*\//g, '').trim());
+    const indent = lead(l);
+    li += 1;
+    while (opensBlock && li < lines.length) {
+      const l2 = lines[li];
+      if (!l2.trim()) { li += 1; continue; }
+      if (lead(l2) > indent) { li += 1; continue; }
+      if (/^[ \t]*[{}][ \t]*$/.test(l2)) { li += 1; continue; }
+      break;
+    }
+  }
+
   /* 限制条款（limit）：写在块首的准入条件，每条都应当是比较式 */
   for (let i = 0; i < lines.length; i++) {
     const lm = /^([ \t]*)limit[ \t]*:(.*)$/.exec(lines[i]);
