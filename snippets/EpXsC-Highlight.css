@@ -33,7 +33,7 @@ body {
   --epx-b2:       var(--text-muted);    /* 嵌套括号 第 2 层 —— 退路色；实际用第 3 节的柔和粉 */
   --epx-b3:       var(--text-muted);    /* 嵌套括号 第 3 层 —— 退路色；实际用第 3 节的柔和绿 */
   --epx-variable: var(--color-pink);     /* 变量名（参数表里冒号后面那个词） */
-  --epx-modifier: var(--color-purple);   /* 限定词 private／protected／public／const */
+  --epx-modifier: var(--color-red);      /* 限定词：契约层的一员（斜体，区别于条款的加粗） */
 }
 
 /* 浅色主题下 --color-yellow 太淡，压深一档保证可读 */
@@ -113,7 +113,7 @@ code[class*="language-EpXsC" i] .token.axis { color: var(--epx-axis); }
 
 code[class*="language-EpXsC" i] .token.pointer { color: var(--epx-pointer); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.coordRun { color: var(--text-muted); font-weight: 600; text-decoration: underline dotted var(--text-faint); text-underline-offset: 0.2em; }
-code[class*="language-EpXsC" i] .token.modifier { color: var(--epx-modifier); font-style: italic; font-weight: 700; }
+code[class*="language-EpXsC" i] .token.modifier { color: var(--epx-modifier); font-style: italic; font-weight: 600; }
 code[class*="language-EpXsC" i] .token.declTarget { color: var(--epx-variable); font-weight: 600; }
 code[class*="language-EpXsC" i] .token.varUse { color: var(--epx-variable); }
 code[class*="language-EpXsC" i] .token.operator { color: var(--epx-operator); }
@@ -212,7 +212,8 @@ body.theme-light code[class*="language-EpXsC" i] .token.varUse {
   color: color-mix(in srgb, var(--color-pink) 90%, var(--text-normal));
 }
 body.theme-light code[class*="language-EpXsC" i] .token.pretium,
-body.theme-light code[class*="language-EpXsC" i] .token.clause {
+body.theme-light code[class*="language-EpXsC" i] .token.clause,
+body.theme-light code[class*="language-EpXsC" i] .token.modifier {
   color: #cd3145;
   color: color-mix(in srgb, var(--color-red) 85%, var(--text-normal));
 }
