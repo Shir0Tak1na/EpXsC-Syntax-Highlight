@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.23.1';
+const BUILD = '1.23.2';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -96,12 +96,29 @@ function parseEntries(text) {
     const h = /^#{1,6}\s*(.+?)\s*$/.exec(lines[i]);
     if (h) { section = h[1]; continue; }
     const m = /^\|\s*([A-Za-z][A-Za-z0-9_-]{0,30})\s*\|(.*)$/.exec(lines[i]);
-    if (!m) continue;
+    if (!m) {
+      /* 另一类表：首列中文名、次列码（如《词典》附表「元素固定缩写」）——把码也登记成词条 */
+      const c2 = /^\|\s*([^|]{1,14}?)\s*\|\s*([A-Za-z][A-Za-z0-9]{0,6})\s*\|/.exec(lines[i]);
+      if (c2) {
+        const code = c2[2];
+        const cn = c2[1].trim();
+        const k = code.toLowerCase();
+        if (cn && !out.has(k)) out.set(k, { word: code, pos: '元素码', meaning: cn, abbr: code });
+        /* 元素码以大小写与普通词区分（Sar 初元素 vs sar 开始）：原样再登记一份 */
+        if (cn) out.set(code, { word: code, pos: '元素码', meaning: cn, abbr: code });
+      }
+      continue;
+    }
     const cells = m[2].split('|');
     const meaning = (cells[0] || '').trim();
     if (!meaning || meaning === 'meaning' || meaning === '义' || meaning === '释义') continue;
     const key = m[1].toLowerCase();
     if (!out.has(key)) out.set(key, { word: m[1], pos: section, meaning: meaning, abbr: (cells[1] || '').trim() });
+    /* 缩写反查：登记 Abbr → 词条，使缩写也能悬停 */
+    const abbr = (cells[1] || '').trim();
+    if (/^[A-Za-z][A-Za-z0-9]{1,6}$/.test(abbr) && !out.has(abbr.toLowerCase())) {
+      out.set(abbr.toLowerCase(), { word: abbr, pos: ELEMENTS.indexOf(abbr) >= 0 ? '元素码' : (section + '·缩写'), meaning: meaning, abbr: abbr });
+    }
   }
   return out;
 }
@@ -1171,7 +1188,13 @@ function buildTip(cls, text, info, ranks) {
         body: '可见性 ' + vis + (ps.length ? '；形参（' + ps.length + '）' + ps.join('、') : '；无形参') + (rec.file ? '；登记于 ' + String(rec.file).split('/').pop() : '') };
     }
     if (cls === 'spellRef') return { label: '术式引用：' + text, body: '未登记 —— 《魔法》登记表里没有这个术式' };
-  }  if (cls === 'rankRange') {
+  }  if (cls === 'element') {
+    const e = info.get(String(text)) || info.get(String(text).toLowerCase());
+    const mean = e && e.meaning ? e.meaning : '';
+    return { label: '元素码：' + text,
+      body: (mean ? mean + '；' : '') + '元素码是类变量：既是类型，也是该类型的唯一取值（第一章定义 1.3）；有地址而无空间坐标（第四章）' };
+  }
+  if (cls === 'rankRange') {
     const m = /^(\d*)\.\.(\d*)$/.exec(text);
     const a = m ? m[1] : '';
     const b = m ? m[2] : '';
