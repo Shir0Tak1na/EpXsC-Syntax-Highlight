@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.19.2';
+const BUILD = '1.20.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -361,6 +361,72 @@ const BASE_LISTS = {
    lookbehind 规则的内容从第 1 组之后算起；inside 规则的内容再递归切一遍；alias 追加附加类名。
    整条规则天然贪婪（匹配到就整体吃掉，内部不再切）—— coordRun 这类正是要这个行为。 */
 const GLOBAL_RE_CACHE = new WeakMap();
+/* 术式登记表：从《魔法》目录与术式语法里收集术式声明（名字、可见性、形参、所在块范围）。
+   用于检查「引用未声明的术式／越权引用／参数不符／consta 被改写」，以及给被引用的术式名着色。 */
+const SPELL_DIR = '世界设定集/设定概念集合/魔法';
+const MOD_WORDS = 'priv|tut|publ|consta';
+function parseParamList(text) {
+  const out = [];
+  const s = String(text || '');
+  const parts = [];
+  let depth = 0, cur = '';
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '[' || ch === '(' || ch === '{') depth += 1;
+    else if (ch === ']' || ch === ')' || ch === '}') depth -= 1;
+    if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  const mods = '(?:(?:' + MOD_WORDS + ')[ \\t]+)*';
+  const simple = new RegExp('^(' + mods + ')([A-Za-z_][A-Za-z0-9_]*)[ \\t]*:[ \\t]*(' + mods + ')([A-Za-z_][A-Za-z0-9_]*)$');
+  const boxed = new RegExp('^(' + mods + ')([A-Za-z_][A-Za-z0-9_]*)[ \\t]*:[ \\t]*\\[[^\\]]*?([A-Za-z_][A-Za-z0-9_]*)[ \\t]*\\]$');
+  const bare = new RegExp('^(' + mods + ')([A-Za-z_][A-Za-z0-9_]*)$');
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i].trim();
+    if (!p) continue;
+    let m = simple.exec(p);
+    if (m) {
+      const list = ((m[1] || '') + ' ' + (m[3] || '')).trim().toLowerCase().split(/[ \t]+/).filter(Boolean);
+      out.push({ type: m[2], name: m[4], modifiers: list });
+      continue;
+    }
+    m = boxed.exec(p);
+    if (m) {
+      const list = (m[1] || '').trim().toLowerCase().split(/[ \t]+/).filter(Boolean);
+      out.push({ type: m[2], name: m[3], container: true, modifiers: list });
+      continue;
+    }
+    m = bare.exec(p);
+    if (m) out.push({ name: m[2], modifiers: (m[1] || '').trim().toLowerCase().split(/[ \t]+/).filter(Boolean) });
+    else out.push({ name: p, modifiers: [] });
+  }
+  return out;
+}
+function collectSpells(text, out, file) {
+  const lines = String(text || '').split('\n');
+  const decl = new RegExp('^(?:De\\b[^{;]*?)?\\s*((?:(?:' + MOD_WORDS + ')[ \\t]+)*)([A-Z][A-Za-z0-9_]*)\\s*\\(([^)]*)\\)[ \\t]*\\{');
+  for (let i = 0; i < lines.length; i++) {
+    const m = decl.exec(lines[i]);
+    if (!m) continue;
+    /* 花括号配对，取本术式的块范围 */
+    let depth = 0, end = i, opened = false;
+    for (let j = i; j < lines.length; j++) {
+      const t = lines[j];
+      for (let k = 0; k < t.length; k++) {
+        if (t[k] === '{') { depth += 1; opened = true; }
+        else if (t[k] === '}') depth -= 1;
+      }
+      if (opened && depth <= 0) { end = j; break; }
+    }
+    const mods = (m[1] || '').trim().toLowerCase().split(/[ \t]+/).filter(Boolean);
+    const name = m[2];
+    const rec = { name: name, visibility: mods.length ? mods[mods.length - 1] : '', modifiers: mods, params: parseParamList(m[3]), file: file, line: i + 1, endLine: end + 1 };
+    if (out.has(name)) { const old = out.get(name); if (!old.duplicates) old.duplicates = []; old.duplicates.push(rec); }
+    else out.set(name, rec);
+  }
+  return out;
+}
 /* 超过这个行数就整块不着色 */
 const MAX_HIGHLIGHT_LINES = 50;
 function asGlobalRe(re) {
@@ -632,13 +698,76 @@ function lintText(text, ctx) {
       }
     }
   }
+  /* ⑨ 术式引用：未登记 / 越权 / 形参不符 / consta 被改写 */
+  const spells = (ctx && ctx.spells) || spellRegistry;
+  if (spells && spells.size) {
+    const splitTop = function (s) {
+      const out = [];
+      let depth = 0, cur = '';
+      for (let i = 0; i < s.length; i++) {
+        const ch = s.charAt(i);
+        if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+        else if (ch === ')' || ch === ']' || ch === '}') depth -= 1;
+        if (ch === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      if (cur.trim()) out.push(cur);
+      return out.map(function (x) { return x.trim(); }).filter(Boolean);
+    };
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      if (/\{[ \t]*$/.test(trimmed)) continue;              /* 声明行（收在 { 上）不是引用 */
+      if (/^\|/.test(trimmed) || /^\/\//.test(trimmed)) continue;  /* 表格行、注释行 */
+      const callRe = /\b([A-Z][A-Za-z0-9_]*)[ \t]*\(/g;
+      let m;
+      while ((m = callRe.exec(raw))) {
+        const name = m[1];
+        const rec = spells.get(name);
+        if (!rec) { push('warn', i + 1, '引用了未登记的术式「' + name + '」'); continue; }
+        if (rec.visibility === 'priv' || rec.visibility === 'tut') {
+          const inside = i + 1 >= rec.line && i + 1 <= rec.endLine;
+          if (!inside) push('warn', i + 1, '「' + name + '」是 ' + rec.visibility + '，只允许在自己的语块内引用');
+        }
+        /* 取这次调用的实参 */
+        const open = m.index + m[0].length - 1;
+        let depth = 0, close = -1;
+        for (let c = open; c < raw.length; c++) {
+          const ch = raw.charAt(c);
+          if (ch === '(') depth += 1;
+          else if (ch === ')') { depth -= 1; if (depth === 0) { close = c; break; } }
+        }
+        if (close < 0) continue;
+        const args = splitTop(raw.slice(open + 1, close));
+        const params = rec.params || [];
+        const required = params.filter(function (p) { return (p.modifiers || []).indexOf('priv') < 0; }).length;
+        const hasPubl = params.some(function (p) { return (p.modifiers || []).indexOf('publ') >= 0; });
+        if (args.length > params.length) push('warn', i + 1, '「' + name + '」形参 ' + params.length + ' 个，这里给了 ' + args.length + ' 个');
+        else if (hasPubl && args.length < required) push('warn', i + 1, '「' + name + '」有必须给出的 publ 形参（应 ' + required + ' 个，这里 ' + args.length + ' 个）');
+        for (let a = 0; a < args.length; a++) {
+          const lbl = /^([A-Za-z_][A-Za-z0-9_]*)[ \t]*:/.exec(args[a]);
+          if (!lbl) continue;
+          const hit = params.filter(function (p) { return p.name === lbl[1] && (p.modifiers || []).indexOf('priv') >= 0; })[0];
+          if (hit) push('warn', i + 1, '「' + hit.name + '」是内部形参（priv），不该由调用方给出');
+        }
+      }
+    }
+    spells.forEach(function (rec, name) {
+      if (rec.visibility === 'consta' && rec.duplicates && rec.duplicates.length) {
+        push('warn', rec.line, '「' + name + '」是 consta，不能重复声明（另见第 ' +
+          rec.duplicates.map(function (d) { return d.line; }).join('、') + ' 行）');
+      }
+    });
+  }
+
   return issues;
 }
 
 /* ---------- 悬停提示 ---------- */
 
 /* 一个 token 可能带多个类（如 typeParam + type），按语义优先级取第一个 */
-const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'coordRun', 'negPrefix', 'modifier', 'declTarget', 'varUse', 'judge', 'clause', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
+const CLASS_ORDER = ['rankRange', 'bracket', 'paren', 'brace', 'pointer', 'coordRun', 'negPrefix', 'modifier', 'declTarget', 'varUse', 'judge', 'clause', 'declaration', 'variable', 'type', 'element', 'unit', 'predicate', 'spellRef', 'function', 'keyword', 'pretium', 'degree', 'axis', 'number', 'comment', 'annotation', 'operator', 'punctuation', 'word'];
 
 const CLASS_LABEL = {
   judge: '判断词',
@@ -647,6 +776,7 @@ const CLASS_LABEL = {
   declTarget: '声明目标',
   negPrefix: '前置否定',
   declaration: '术式名',
+  spellRef: '术式引用',
   predicate: '谓词',
   function: '谓词调用',
   keyword: '',
@@ -690,6 +820,17 @@ function pickClass(classList) {
 }
 
 /* 已声明的变量，用在哪儿都按变量着色（C 风格：同名同色） */
+function markSpellRefs(html) {
+  /* 术式名有两种身份：声明（行尾收在 { 上）与引用（写在效果层，收在 ; 上）。
+     引用改用 function 类着色，与声明的黄色区分开；spellRef 便于提示区分。 */
+  return String(html).split('\n').map(function (line) {
+    if (line.indexOf('class="token declaration"') < 0) return line;
+    const plain = line.replace(/<[^>]+>/g, '');
+    if (/\{[ \t]*$/.test(plain)) return line;
+    return line.replace(/<span class="token declaration"/g, '<span class="token spellRef"');
+  }).join('\n');
+}
+
 function markVarUse(html, vars) {
   if (!vars || !vars.size) return html;
   /* 块内已声明的变量，出现在哪儿都按变量着色 —— 包括词性与术式关键词重名的
@@ -987,7 +1128,19 @@ function rankSpan(a, b, ranks) {
 
 /* 纯函数：给定 token 类别与文本，返回 { label, body } 或 null（不给提示） */
 function buildTip(cls, text, info, ranks) {
-  if (cls === 'rankRange') {
+  /* 术式引用：登记表里有就说明可见性与形参，没有就点明未登记 */
+  if (cls === 'spellRef' || cls === 'declaration') {
+    const rec = spellRegistry.get(String(text));
+    if (rec) {
+      const vis = rec.visibility ? rec.visibility : '默认（块内可见）';
+      const ps = (rec.params || []).map(function (p) {
+        return ((p.modifiers || []).join(' ') ? (p.modifiers || []).join(' ') + ' ' : '') + (p.type ? p.type + ':' : '') + p.name;
+      });
+      return { label: (cls === 'spellRef' ? '术式引用' : '术式声明') + '：' + text,
+        body: '可见性 ' + vis + (ps.length ? '；形参（' + ps.length + '）' + ps.join('、') : '；无形参') + (rec.file ? '；登记于 ' + String(rec.file).split('/').pop() : '') };
+    }
+    if (cls === 'spellRef') return { label: '术式引用：' + text, body: '未登记 —— 《魔法》登记表里没有这个术式' };
+  }  if (cls === 'rankRange') {
     const m = /^(\d*)\.\.(\d*)$/.exec(text);
     const a = m ? m[1] : '';
     const b = m ? m[2] : '';
@@ -1017,9 +1170,11 @@ function buildTip(cls, text, info, ranks) {
   return { label: head + (showAbbr ? '（缩写 ' + raw + '）' : ''), body: entry.meaning + (note ? '；' + note : '') };
 }
 
-const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}";
+const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}";
 
 const varTypesOf = new WeakMap();
+/* 术式登记表（refresh 时填充）：提示与检查都用它 */
+let spellRegistry = new Map();
 
 let tipNode = null;
 
@@ -1295,7 +1450,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor('EPXSC', renderBlock);
     this.registerEvent(this.app.vault.on('modify', function (file) {
       if (!file) return;
-      if (file.path === DICT_PATH || file.path === SYNTAX_PATH || file.path === RANK_PATH) self.refresh();
+      if (file.path === DICT_PATH || file.path === SYNTAX_PATH || file.path === RANK_PATH || file.path.indexOf(SPELL_DIR) === 0) self.refresh();
     }));
     this.addCommand({
       id: 'reload-lexicon',
@@ -1405,6 +1560,19 @@ class EpXsCSyntaxPlugin extends Plugin {
     } else {
       lists = builtinLists(verbRoots);
     }
+
+    /* 术式登记表：《魔法》目录 ＋ 术式语法里的声明（读不到就是空表，检查相应放宽） */
+    const spells = new Map();
+    try {
+      const spellFiles = this.app.vault.getFiles().filter(function (f) {
+        return f.path.indexOf(SPELL_DIR) === 0 || f.path === SYNTAX_PATH;
+      });
+      for (let i = 0; i < spellFiles.length; i++) {
+        collectSpells(await this.app.vault.cachedRead(spellFiles[i]), spells, spellFiles[i].path);
+      }
+    } catch (err) { /* 保持空表 */ }
+    this.spells = spells;
+    spellRegistry = spells;
 
     this.info = info;
     this.ranks = ranks;
@@ -1690,6 +1858,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       const vars = parseVarTypes(text, this.info);
       varTypesOf.set(code, vars);
       html = markVarUse(html, vars);
+      html = markSpellRefs(html);
       code.innerHTML = html;
       this.markUnknown(code);
       this.markNegation(code);

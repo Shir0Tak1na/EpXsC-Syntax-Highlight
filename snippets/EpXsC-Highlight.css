@@ -99,6 +99,7 @@ code[class*="language-EpXsC" i] .token.epx-neg-scope { text-decoration: underlin
 
 code[class*="language-EpXsC" i] .token.predicate,
 code[class*="language-EpXsC" i] .token.function { color: var(--epx-verb); }
+code[class*="language-EpXsC" i] .token.spellRef { color: var(--epx-verb); font-weight: 700; }
 
 code[class*="language-EpXsC" i] .token.declaration { color: var(--epx-decl); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.element { color: var(--epx-element); font-weight: 600; }
