@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.13.1';
+const BUILD = '1.18.6';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1318,39 +1318,33 @@ class EpXsCSyntaxPlugin extends Plugin {
      悬停浮层样式会一起消失），自己把样式塞进页面。先试读插件目录里的 styles.css，读不到就用内置那份。 */
   async ensureStyles() {
     if (this._styleState) return this._styleState;
-    let present = false;
+    /* 第一步：无条件把内置配色挂上去 —— 不依赖任何读取，绝不空手而归。
+       这样即使读文件卡住或失败，颜色、代码块标记、浮层样式也一定在。 */
+    let el = null;
     try {
-      const sheets = document.styleSheets || [];
-      for (let i = 0; i < sheets.length && !present; i++) {
-        let rules = null;
-        try { rules = sheets[i].cssRules; } catch (e) { continue; }
-        if (!rules) continue;
-        for (let j = 0; j < rules.length; j++) {
-          const sel = rules[j].selectorText || '';
-          if (sel.indexOf('.epx-tip') >= 0 || sel.indexOf('.token.keyword') >= 0) { present = true; break; }
-        }
-      }
-    } catch (e) { /* 读不到就当没有 */ }
-    if (present) { this._styleState = '外部样式表已生效'; return this._styleState; }
-    let css = '';
+      el = document.getElementById('epxsc-styles');
+      if (!el) { el = document.createElement('style'); el.id = 'epxsc-styles'; document.head.appendChild(el); }
+      el.textContent = FALLBACK_CSS;
+      this._styleState = '已注入内置配色';
+    } catch (e) {
+      this._styleState = '注入失败：' + (e && e.message);
+      return this._styleState;
+    }
+    /* 第二步：若能读到插件目录里的 styles.css（更完整，含语法检查面板等），就换成它。
+       1.5 秒读不到就算了 —— 内置那份已经在生效。 */
     try {
       const dir = (this.manifest && this.manifest.dir) || '.obsidian/plugins/epxsc-syntax';
-      css = await Promise.race([
+      const css = await Promise.race([
         this.app.vault.adapter.read(dir + '/styles.css'),
         new Promise(function (resolve) { window.setTimeout(function () { resolve(''); }, 1500); })
       ]);
-    } catch (e) { css = ''; }
-    let from = '外部样式表没生效：已把 styles.css 注入页面';
-    if (!css || css.indexOf('.epx-tip') < 0) { css = FALLBACK_CSS; from = '外部样式表没生效：已注入内置配色'; }
-    try {
-      let el = document.getElementById('epxsc-styles');
-      if (!el) { el = document.createElement('style'); el.id = 'epxsc-styles'; document.head.appendChild(el); }
-      el.textContent = css;
-      this._styleState = from;
-    } catch (e) { this._styleState = '注入失败：' + (e && e.message); }
+      if (css && css.indexOf('.epx-tip') >= 0) {
+        el.textContent = css;
+        this._styleState = '已用插件目录里的 styles.css';
+      }
+    } catch (e) { /* 保持内置那份 */ }
     return this._styleState;
   }
-
   /* 生成诊断报告，写进库里，便于整段复制出来 */
   async diagnose() {
     const L = [];
