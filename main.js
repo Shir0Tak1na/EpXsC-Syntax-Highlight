@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.24.1';
+const BUILD = '1.24.2';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1991,7 +1991,7 @@ class EpXsCSyntaxPlugin extends Plugin {
    段内凡「词 + 冒号」的那个词，一律改标为字典键（键原本可能被当成缩放轴／类型形参／变量）。 */
 const DICT_BEFORE = 'word|type|declaration|className|clause|predicate|function|modifier|variable|declTarget|axis|element|dictKey|filterKey|filterValue|unit';
 function markDictKeys(html) {
-  const seg = new RegExp('(?:<span class="token (?:' + DICT_BEFORE + ')">[^<]*<\\/span>[ \\t]*)?<span class="token brace">\\{<\\/span>[^{}\\n]*<span class="token brace">\\}<\\/span>', 'g');
+  const seg = new RegExp('(?:<span class="token (' + DICT_BEFORE + ')">[^<]*<\\/span>[ \\t]*)?<span class="token brace">\\{<\\/span>[^{}\\n]*<span class="token brace">\\}<\\/span>', 'g');
   return html.replace(seg, function (all, kind) {
     if (kind) return all;                          /* 前面是词 → 容器型形参，不动 */
     return all.replace(/<span class="token [a-zA-Z ]+">([A-Za-z_][A-Za-z0-9_]*)<\/span>(?=[ \t]*<span class="token punctuation">:<\/span>)/g,
