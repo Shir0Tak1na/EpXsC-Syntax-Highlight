@@ -62,7 +62,8 @@ function escapeWord(w) {
 
 /* 词表一律大小写不敏感：术式里 Plur / plur 混用，元素码除外 */
 function wordPattern(words) {
-  const sorted = words.slice().sort(function (a, b) { return b.length - a.length; });
+  /* 容错：词表缺失时退化成空表，绝不让加载期抛错 */
+  const sorted = (Array.isArray(words) ? words.slice() : []).sort(function (a, b) { return b.length - a.length; });
   return new RegExp('\\b(?:' + sorted.map(escapeWord).join('|') + ')\\b', 'i');
 }
 
@@ -348,6 +349,8 @@ function makeGrammar(lists) {
 
 const BASE_LISTS = {
   keyword: FALLBACK.keyword.slice(),
+  judge: FALLBACK.judge.slice(),
+  clause: FALLBACK.clause.slice(),
   degree: FALLBACK.degree.slice(),
   predicate: FALLBACK.predicate.slice(),
   unit: FALLBACK.unit.slice()
