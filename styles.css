@@ -12,8 +12,9 @@
 body {
   --epx-comment:  var(--text-faint);
   --epx-pretium:  var(--color-red);      /* 代价条款 */
-  --epx-keyword:  var(--color-purple);   /* 判断词 · 术式关键词 */
-  --epx-clause:   var(--color-red);      /* 块内条款：限制 · 代价 · 能量 · 独立 · 汲取 */
+  --epx-keyword:  var(--color-purple);   /* 功能词：介词·助动词·限定词·代词·疑问词·连接词 */
+  --epx-judge:    var(--color-purple);   /* 判断词：if／elif／else 一族 */
+  --epx-clause:   var(--color-red);      /* 术式关键词：块内条款与术式专用词 */
   --epx-verb:     var(--color-blue);     /* 谓词 · 谓词调用 */
   --epx-decl:     var(--color-yellow);   /* 术式名（声明） */
   --epx-element:  var(--color-cyan);     /* 元素码 */
@@ -92,6 +93,7 @@ code[class*="language-EpXsC" i] .token.annotation { color: var(--epx-comment); f
 code[class*="language-EpXsC" i] .token.pretium { color: var(--epx-pretium); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.clause { color: var(--epx-clause); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.keyword { color: var(--epx-keyword); font-weight: 600; }
+code[class*="language-EpXsC" i] .token.judge { color: var(--epx-judge); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.negPrefix { color: var(--epx-keyword); font-weight: 700; }
 code[class*="language-EpXsC" i] .token.epx-neg-scope { text-decoration: underline dotted var(--epx-keyword); text-underline-offset: 0.2em; }
 
