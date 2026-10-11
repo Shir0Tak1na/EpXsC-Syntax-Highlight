@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.24.0';
+const BUILD = '1.24.1';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -331,8 +331,6 @@ function makeGrammar(lists, keys) {
     unit: wordPattern(lists.unit),
     element: new RegExp('\\b(?:' + ELEMENTS.join('|') + ')\\b'),
     type: new RegExp('\\b(?:' + TYPES.join('|') + ')\\b'),
-    /* 字典的键：{k: v} 里紧跟 { 或 , 的词。排在 typeParam 之前，免得 diu 这类词被当成类型形参 */
-    dictKey: { pattern: /([{,][ \t]*)([a-z][A-Za-z0-9_]*)(?=[ \t]*:)/, lookbehind: true },
     /* 参数表里的类型位：紧跟在 ( 或 , 之后、后面是冒号的词（单个小写字母按变量名处理）。
        用 Prism 的 lookbehind 写法，避免原生 (?<=) 在旧 iOS Safari 上解析即报错。 */
     typeParam: {
@@ -856,7 +854,11 @@ const CLASS_LABEL = {
 
 /* 词典暂未收、但术式里在用的词（补一条即可） */
 const EXTRA_WORDS = {
-  in: { word: 'in', pos: '介词', meaning: '在……里（词典暂未收录，按术式用法补）', abbr: '' }
+  in: { word: 'in', pos: '介词', meaning: '在……里（词典暂未收录，按术式用法补）', abbr: '' },
+  /* 第五章筛选键表：ordin= 的三个取值（词典未收，按表补） */
+  proxim: { word: 'proxim', pos: '筛选值', meaning: '近（ordin= 的取值）', abbr: '' },
+  procul: { word: 'procul', pos: '筛选值', meaning: '远（ordin= 的取值）', abbr: '' },
+  temer: { word: 'temer', pos: '筛选值', meaning: '随机（ordin= 的取值）', abbr: '' }
 };
 
 /* 个别类型词要补一句（词典释义只说词义，说不清它在类型里的职务） */
@@ -1970,6 +1972,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       const vars = parseVarTypes(text, this.info);
       varTypesOf.set(code, vars);
       html = markVarUse(html, vars);
+      html = markDictKeys(html);
       html = markSpellRefs(html);
       code.innerHTML = html;
       this.markUnknown(code);
@@ -1982,6 +1985,20 @@ class EpXsCSyntaxPlugin extends Plugin {
 
 /* 逐层给括号打上 epx-d1 / d2 / d3（三层一循环，再深轮回第一层）。
    Prism 是逐位置的词法分析，数不了层数，所以在这一步扫一遍它产出的 HTML。 */
+/* 字典的键：只在真正的字典字面量里改判。
+   判据一：一层不跨行的 { } 段；判据二：{ 前面紧挨的那个 span 不是「词」（若前面是 clavis 这类词，
+   那是容器型形参，里面的 言辞: Name 是「类型: 变量名」，不能当键）。
+   段内凡「词 + 冒号」的那个词，一律改标为字典键（键原本可能被当成缩放轴／类型形参／变量）。 */
+const DICT_BEFORE = 'word|type|declaration|className|clause|predicate|function|modifier|variable|declTarget|axis|element|dictKey|filterKey|filterValue|unit';
+function markDictKeys(html) {
+  const seg = new RegExp('(?:<span class="token (?:' + DICT_BEFORE + ')">[^<]*<\\/span>[ \\t]*)?<span class="token brace">\\{<\\/span>[^{}\\n]*<span class="token brace">\\}<\\/span>', 'g');
+  return html.replace(seg, function (all, kind) {
+    if (kind) return all;                          /* 前面是词 → 容器型形参，不动 */
+    return all.replace(/<span class="token [a-zA-Z ]+">([A-Za-z_][A-Za-z0-9_]*)<\/span>(?=[ \t]*<span class="token punctuation">:<\/span>)/g,
+      function (span, name) { return '<span class="token dictKey">' + name + '</span>'; });
+  });
+}
+
 function markBracketDepth(html, kinds) {
   let depth = 0;
   let idx = 0;
