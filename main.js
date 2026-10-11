@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.25.1';
+const BUILD = '1.26.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -374,7 +374,7 @@ function makeGrammar(lists, keys) {
       greedy: true
     },
     classOp: { pattern: /::/, alias: 'operator' },
-    operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=|\.{2,3})|\+|-|\*|\/|=|<|>|\^|~|\?|!/,
+    operator: /(?:\+=|-=|\*=|\/=|<=|>=|==|!=|\.{2,3})|\+|-|\*|%|\/|=|<|>|\^|~|\?|!/,
     /* 括号分三类：() 分组 · [] 方括号（列表 / 下标 / 秩）· {} 花括号（语块）；其余标点归 punctuation */
     paren: /[()]/,
     bracket: /[\[\]]/,
@@ -611,6 +611,8 @@ function lintText(text, ctx) {
     if (!l.trim()) { li += 1; continue; }
     const r = clauseRank(l);
     if (r === 0) { li += 1; continue; }
+    /* 新的头行（术式声明）—— 一个代码块里写两条术式时，次序序列各自从新开始 */
+    if (r === 1 && lastRank >= 1) { lastRank = 1; lastRankLine = li + 1; li += 1; continue; }
     if (r < lastRank) {
       push('warn', li + 1, '条款次序：应为 载体制 → 对象 → 限制 → 代价 → 触发 → 效果 → 能量 → 协议（第 ' + lastRankLine + ' 行之后再出现更靠前的条款）');
       break;
