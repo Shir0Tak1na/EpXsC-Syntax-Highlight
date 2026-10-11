@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.18.7';
+const BUILD = '1.18.8';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -411,9 +411,8 @@ function tokenizeText(text, grammar) {
     if (!best) { out += escHtml(text.slice(pos)); break; }
     if (best.index > pos) out += escHtml(text.slice(pos, best.index));
     const rule = best.rule;
-    let inner = escHtml(best.content);
-    if (!(rule instanceof RegExp) && rule.inside) inner = tokenizeText(best.content, rule.inside);
     const cls = best.name + (!(rule instanceof RegExp) && rule.alias ? ' ' + rule.alias : '');
+    const inner = (!(rule instanceof RegExp) && rule.inside) ? tokenizeText(best.content, rule.inside) : escHtml(best.content);
     out += '<span class="token ' + cls + '">' + inner + '</span>';
     pos = best.index + best.content.length;
   }
@@ -1592,9 +1591,10 @@ class EpXsCSyntaxPlugin extends Plugin {
     } catch (e) { styleState = '读不到'; }
     new Notice([
       'EpXsC 自检 · 代码版本 ' + BUILD,
-      '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失'),
+      '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失') + ' · 切词器：自带（Prism ' + (window.Prism ? '有' : '没有') + '）',
       '当前视图：' + mode,
       'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）· 实时预览代码行 ' + lines + ' 行',
+      (codes.length > 0 && tokened === 0 && mode === '阅读视图' ? '⚠ 阅读视图里这些块没有 token —— 渲染没跑起来，请把这几行发我' : '渲染：' + (tokened > 0 ? '正常' : '无代码块')),
       '首个块 class：' + firstClass,
       '首个块 token 数：' + tokenCount + ' · 首个 token 颜色：' + color,
       '样式表：' + styleState + (this._styleState ? ' · 兜底：' + this._styleState : '')
