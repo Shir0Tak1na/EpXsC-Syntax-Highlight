@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.24.2';
+const BUILD = '1.25.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -289,6 +289,15 @@ function makeGrammar(lists, keys) {
   return {
     comment: /\/\*[\s\S]*?\*\//,
     annotation: /^[ \t]*\.[A-Za-z_][\w-]*(?:[ \t]+[^\n]*)?$/m,
+    /* 导入：块首声明要引用的他处术式（第十二章规则 12.6） */
+    importDecl: {
+      pattern: /^[ \t]*impo[ \t]+[^\n;]*/m,
+      inside: {
+        keyword: /\bimpo\b/,
+        spellRef: /[A-Z][A-Za-z0-9_]*/,
+        punctuation: /[,;]/
+      }
+    },
     /* 频段标签：协议里 frequent: #… 的 # 之后，直到条目结束（, ; } 或换行） */
     freqTag: /#[^\n,;}]*/,
     /* 变量名：紧跟「类型:」的那个词（含 [2:变量] 这类位数写法）。
@@ -577,6 +586,7 @@ function lintText(text, ctx) {
   const clauseRank = function (line) {
     const t = line.replace(/\/\*[\s\S]*?\*\//g, '').trim();
     if (!t || t === '}' || t === '{') return 0;
+    if (/^impo\b/.test(t)) return 0;                              /* 导入行不属于条款序列 */
     /* 协议条款及其四个条目：排在能量与特性标记之后（第十五章） */
     if (/^protocol\b/.test(t)) return 8;
     if (/^(?:(?:priv|tut|publ|consta)[	 ]+)?(clav|eRk|frequent)[	 ]*:/.test(t)) return 8;
@@ -1197,7 +1207,7 @@ function rankSpan(a, b, ranks) {
 /* 这些词虽登记在《词典》的「术式关键词」节，却不是条款 —— 悬停标签要分开 */
 const WORD_KIND = {
   class: '语法词', hered: '语法词', campus: '结界类',
-  protocol: '协议条款', clav: '协议条目', frequent: '协议条目', erk: '相位'
+  protocol: '协议条款', clav: '协议条目', frequent: '协议条目', erk: '相位', impo: '语法词'
 };
 function buildTip(cls, text, info, ranks) {
   /* 术式引用：登记表里有就说明可见性与形参，没有就点明未登记 */
