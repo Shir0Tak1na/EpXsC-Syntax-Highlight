@@ -54,7 +54,7 @@ const TYPES = ['METOS', 'locus', 'siro'];
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.21.1';
+const BUILD = '1.22.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -609,8 +609,11 @@ function lintText(text, ctx) {
     for (let k = 0; k < items.length; k++) {
       const body = items[k].text.replace(/\/\*[\s\S]*?\*\//g, '').trim();
       if (!body) continue;
-      if (!/(<=|>=|==|!=|<|>)/.test(body)) {
-        push('warn', items[k].line, '限制条款（limit）里的每一条都应当是比较式 —— 它是准入条件，不成立就不发动');
+      /* 判定式有两种：符号比较式，或第三章定义的词形判定（aude／kon／aut／dis／ne 等） */
+      const symbolCmp = /(<=|>=|==|!=|<|>)/.test(body);
+      const wordCmp = /(^|[^A-Za-z_])(aude|kon|aut|dis|ne|vero|re|exo)([^A-Za-z_]|$)/.test(body);
+      if (!symbolCmp && !wordCmp) {
+        push('warn', items[k].line, '限制条款（limit）里的每一条都应当是判定式 —— 比较式（如 <= 66 miteas）或词形判定（aude 相等／kon 合取／aut 包含或／dis 互斥或／ne 否定）');
       }
     }
   }
