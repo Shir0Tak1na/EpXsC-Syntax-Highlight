@@ -241,3 +241,13 @@ body.theme-light code[class*="language-EpXsC" i] .token.modifier {
   }
   pre:has(> code[class*="language-EpXsC" i])::before { display: none; }
 }
+
+/* 普通句：EpXsG（语法标记）· EpXsT（句子对译） */
+.epx-ord { line-height: 1.9; }
+.epx-oline { margin: .18em 0; }
+.epx-gw { display: inline-block; text-align: center; margin: 0 .16em; vertical-align: bottom; }
+.epx-gsrc { display: block; }
+.epx-ggl { display: block; font-size: .74em; opacity: .7; font-family: var(--font-text); }
+.epx-tsrc { display: block; }
+.epx-tzh { display: block; opacity: .78; font-size: .92em; }
+.epx-gap { height: .45em; }

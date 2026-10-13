@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.27.0';
+const BUILD = '1.28.0';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1276,7 +1276,7 @@ function buildTip(cls, text, info, ranks) {
   return { label: head, body: entry.meaning + (note ? '；' + note : '') };
 }
 
-const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}";
+const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}\n/* 普通句：EpXsG（语法标记）· EpXsT（句子对译） */\n.epx-ord { line-height: 1.9; }\n.epx-oline { margin: .18em 0; }\n.epx-gw { display: inline-block; text-align: center; margin: 0 .16em; vertical-align: bottom; }\n.epx-gsrc { display: block; }\n.epx-ggl { display: block; font-size: .74em; opacity: .7; font-family: var(--font-text); }\n.epx-tsrc { display: block; }\n.epx-tzh { display: block; opacity: .78; font-size: .92em; }\n.epx-gap { height: .45em; }";
 
 const varTypesOf = new WeakMap();
 /* 术式登记表（refresh 时填充）：提示与检查都用它 */
@@ -1491,6 +1491,71 @@ class LintModal extends Modal {
   onClose() { this.contentEl.empty(); }
 }
 
+/* ── 普通句：EpXsG（语法标记）与 EpXsT（句子对译）──────────────────────
+   两种都用同一套着色与悬停，但不做术式检查（不是术式）。
+   写法：原文一行一句；译文行以 > 开头，紧接它所译的那句。
+   EpXsG：每个词下方自动标出词类（取《词典》），再列出译文。
+   EpXsT：只做对译——原文一行、译文一行。
+   ─────────────────────────────────────────────────────────────── */
+const ORD_CLASS = 'language-EpXsC';          /* 沿用同一套 token 类，悬停与配色自动生效 */
+function ordTokens(line, grammar) {
+  const html = tokenizeText(line, grammar);
+  const out = [];
+  const re = /<span class="token ([a-zA-Z ]+)">([\s\S]*?)<\/span>/g;
+  let m;
+  while ((m = re.exec(html))) out.push({ cls: m[1], text: m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') });
+  return out;
+}
+function ordGlossOf(tok, info) {
+  const t = tok.text.trim();
+  if (!t || /^[\p{P}]$/u.test(t)) return '';
+  const e = info && (info.get(t) || info.get(t.toLowerCase()));
+  if (e) {
+    const raw = String(e.pos || '').replace('·缩写', '');
+    const pos = SECTION_POS[raw] || raw;
+    const num = String(e.meaning || '').replace(/[^\u4e00-\u9fa5]/g, '');
+    if (pos) return pos;
+    if (num) return num.slice(0, 4);
+  }
+  const map = { judge: '判断词', keyword: '功能词', modifier: '限定词', degree: '程度词', unit: '单位', predicate: '谓词', element: '元素码', type: '类型名', number: '数' };
+  for (const k in map) if (tok.cls.indexOf(k) >= 0) return map[k];
+  return '';
+}
+function renderOrdBlock(el, source, mode, grammar, info) {
+  const lines = String(source || '').replace(/\r/g, '').split('\n');
+  let html = '<div class="epx-ord epx-ord-' + mode + '">';
+  let pending = null;
+  const flush = function (pair) {
+    if (!pair) return;
+    html += '<div class="epx-oline">';
+    if (mode === 'G') {
+      const toks = ordTokens(pair.src, grammar);
+      html += '<span class="epx-gs">';
+      for (let i = 0; i < toks.length; i++) {
+        const tok = toks[i];
+        const gl = ordGlossOf(tok, info);
+        html += '<span class="epx-gw"><span class="epx-gsrc token ' + tok.cls + '">' + tok.text + '</span>' +
+                (gl ? '<span class="epx-ggl">' + gl + '</span>' : '') + '</span>';
+      }
+      html += '</span>';
+    } else {
+      html += '<span class="epx-tsrc">' + tokenizeText(pair.src, grammar) + '</span>';
+    }
+    if (pair.zh) html += '<span class="epx-tzh">' + pair.zh + '</span>';
+    html += '</div>';
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const t = raw.trim();
+    if (!t) { flush(pending); pending = null; html += '<div class="epx-gap"></div>'; continue; }
+    if (t.charAt(0) === '>') { if (pending) pending.zh = t.slice(1).trim(); else html += '<div class="epx-oline"><span class="epx-tzh">' + t.slice(1).trim() + '</span></div>'; continue; }
+    flush(pending);
+    pending = { src: t, zh: '' };
+  }
+  flush(pending);
+  html += '</div>';
+  el.innerHTML = html;
+}
 class EpXsCSyntaxPlugin extends Plugin {
   onload() {
     const self = this;
@@ -1589,6 +1654,11 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor('EpXsC', renderBlock);
     this.registerMarkdownCodeBlockProcessor('epxsc', renderBlock);
     this.registerMarkdownCodeBlockProcessor('EPXSC', renderBlock);
+    /* 普通句：语法标记 / 句子对译 */
+    const ordG = (el, src) => renderOrdBlock(el, src, 'G', this.grammar, this.info);
+    const ordT = (el, src) => renderOrdBlock(el, src, 'T', this.grammar, this.info);
+    for (const lang of ['EpXsG', 'epxsg', 'EPXSG']) this.registerMarkdownCodeBlockProcessor(lang, ordG);
+    for (const lang of ['EpXsT', 'epxst', 'EPXST']) this.registerMarkdownCodeBlockProcessor(lang, ordT);
     this.registerEvent(this.app.vault.on('modify', function (file) {
       if (!file) return;
       if (file.path === DICT_PATH || file.path === SYNTAX_PATH || file.path === RANK_PATH || file.path.indexOf(SPELL_DIR) === 0) self.refresh();
