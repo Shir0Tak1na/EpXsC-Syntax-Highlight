@@ -55,7 +55,7 @@ const TYPES = ['METOS', 'locus', 'siro', 'intervallum', 'verb', 'littera', 'form
 const MODIFIERS = ['priv', 'tut', 'publ', 'consta', 'om', 'tot'];
 
 /* 代码版本：诊断报告里会写出来，用来分辨「文件换了但插件没重载」 */
-const BUILD = '1.28.0';
+const BUILD = '1.28.3';
 
 function escapeWord(w) {
   return w.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&');
@@ -1276,7 +1276,7 @@ function buildTip(cls, text, info, ranks) {
   return { label: head, body: entry.meaning + (note ? '；' + note : '') };
 }
 
-const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}\n/* 普通句：EpXsG（语法标记）· EpXsT（句子对译） */\n.epx-ord { line-height: 1.9; }\n.epx-oline { margin: .18em 0; }\n.epx-gw { display: inline-block; text-align: center; margin: 0 .16em; vertical-align: bottom; }\n.epx-gsrc { display: block; }\n.epx-ggl { display: block; font-size: .74em; opacity: .7; font-family: var(--font-text); }\n.epx-tsrc { display: block; }\n.epx-tzh { display: block; opacity: .78; font-size: .92em; }\n.epx-gap { height: .45em; }";
+const FALLBACK_CSS = "/* EpXsC Syntax 内置兜底样式（与 styles.css 第 1／2／3／5／6 节一致） */\nbody{--epx-comment:var(--text-faint);--epx-pretium:var(--color-red);--epx-keyword:var(--color-purple);--epx-judge:var(--color-purple);--epx-clause:var(--color-red);--epx-verb:var(--color-blue);--epx-decl:var(--color-yellow);--epx-element:var(--color-cyan);--epx-type:var(--color-cyan);--epx-unit:var(--color-orange);--epx-number:var(--color-orange);--epx-degree:var(--color-pink);--epx-axis:var(--color-green);--epx-pointer:var(--text-accent);--epx-operator:var(--text-muted);--epx-punct:var(--text-muted);--epx-paren:var(--text-muted);--epx-bracket:var(--text-muted);--epx-brace:var(--text-muted);--epx-rank:var(--color-orange);--epx-b2:var(--text-muted);--epx-b3:var(--text-muted);--epx-variable:var(--color-pink);--epx-modifier:var(--color-red)}\npre:has(> code[class*=\"language-EpXsC\" i]){position:relative;padding:1.1em 1.15em 1.15em;background:var(--code-background);border:1px solid var(--background-modifier-border);border-left:3px solid var(--text-accent);border-radius:var(--radius-m)}\npre:has(> code[class*=\"language-EpXsC\" i])::before{content:\"EpXsC\";position:absolute;inset:0 0 auto auto;padding:0 .7em;font-family:var(--font-interface);font-size:.62em;font-weight:600;letter-spacing:.09em;line-height:1.8;color:var(--text-on-accent);background:var(--text-accent);border-radius:0 var(--radius-m) 0 var(--radius-s);opacity:.85;pointer-events:none;user-select:none}\ncode[class*=\"language-EpXsC\" i]{font-family:var(--font-monospace);font-size:.9em;line-height:1.65;tab-size:4;color:var(--code-normal,var(--text-normal));background:none;padding:0;text-shadow:none}\ncode[class*=\"language-EpXsC\" i] .token.comment{color:var(--epx-comment);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.pretium{color:var(--epx-pretium);font-weight:700}code[class*=\"language-EpXsC\" i] .token.clause{color:var(--epx-clause);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.keyword{color:var(--epx-keyword);font-weight:600}code[class*=\"language-EpXsC\" i] .token.judge{color:var(--epx-judge);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.negPrefix{color:var(--epx-keyword);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.function{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.spellRef{color:var(--epx-verb);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.predicate{color:var(--epx-verb)}\ncode[class*=\"language-EpXsC\" i] .token.declaration{color:var(--epx-decl);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.element{color:var(--epx-element);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.type{color:var(--epx-type)}\ncode[class*=\"language-EpXsC\" i] .token.variable{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.unit{color:var(--epx-unit);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.number{color:var(--epx-number)}\ncode[class*=\"language-EpXsC\" i] .token.rankRange{color:var(--epx-rank);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.degree{color:var(--epx-degree);font-style:italic}\ncode[class*=\"language-EpXsC\" i] .token.axis{color:var(--epx-axis)}\ncode[class*=\"language-EpXsC\" i] .token.pointer{color:var(--epx-pointer);font-weight:700}\ncode[class*=\"language-EpXsC\" i] .token.coordRun{color:var(--text-muted);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.modifier{color:var(--epx-modifier);font-style:italic;font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.declTarget{color:var(--epx-variable);font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.varUse{color:var(--epx-variable)}\ncode[class*=\"language-EpXsC\" i] .token.operator{color:var(--epx-operator)}\ncode[class*=\"language-EpXsC\" i] .token.bracket{color:var(--epx-bracket);color:color-mix(in srgb,var(--color-cyan) 40%,var(--text-muted));font-weight:600}\ncode[class*=\"language-EpXsC\" i] .token.paren{color:var(--epx-paren)}\ncode[class*=\"language-EpXsC\" i] .token.brace{color:var(--epx-brace)}\ncode[class*=\"language-EpXsC\" i] .token.punctuation{color:var(--epx-punct)}\ncode[class*=\"language-EpXsC\" i] .token.epx-d2{color:var(--epx-b2);color:color-mix(in srgb,var(--color-pink) 35%,var(--text-muted))}\ncode[class*=\"language-EpXsC\" i] .token.epx-d3{color:var(--epx-b3);color:color-mix(in srgb,var(--color-green) 35%,var(--text-muted))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.declaration{color:#7e691f;color:color-mix(in srgb,var(--color-yellow) 45%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.element,body.theme-light code[class*=\"language-EpXsC\" i] .token.type{color:#17797a;color:color-mix(in srgb,var(--color-cyan) 50%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.unit,body.theme-light code[class*=\"language-EpXsC\" i] .token.number,body.theme-light code[class*=\"language-EpXsC\" i] .token.rankRange{color:#a05b16;color:color-mix(in srgb,var(--color-orange) 60%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.axis{color:#197d44;color:color-mix(in srgb,var(--color-green) 55%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.degree,body.theme-light code[class*=\"language-EpXsC\" i] .token.variable,body.theme-light code[class*=\"language-EpXsC\" i] .token.declTarget,body.theme-light code[class*=\"language-EpXsC\" i] .token.varUse{color:#c4387c;color:color-mix(in srgb,var(--color-pink) 90%,var(--text-normal))}\nbody.theme-light code[class*=\"language-EpXsC\" i] .token.pretium,body.theme-light code[class*=\"language-EpXsC\" i] .token.clause,body.theme-light code[class*=\"language-EpXsC\" i] .token.modifier{color:#cd3145;color:color-mix(in srgb,var(--color-red) 85%,var(--text-normal))}\ncode[class*=\"language-EpXsC\" i] .token.epx-unknown{text-decoration:underline dotted var(--color-orange);text-underline-offset:.2em}\n.epx-tip{position:fixed;z-index:9999;max-width:340px;padding:7px 11px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-normal);font-family:var(--font-interface);font-size:12px;line-height:1.5;box-shadow:var(--shadow-s);pointer-events:none;opacity:0}\n.epx-tip.is-visible{opacity:1}\n.epx-tip .epx-tip-head{font-weight:600;color:var(--text-accent)}\n.epx-tip .epx-tip-body{color:var(--text-muted)}\n/* 普通句块：外框 + 右上角语言签，跟术式块同形，只按模式换色（G 青 · T 橙）\n   外层是 code.language-EpXsC：token 配色与悬停沿用术式那套选择器，这里只管版面。 */\ncode.epx-ord {\n  --epx-ord-tint: var(--color-cyan);\n  display: block;\n  position: relative;\n  line-height: 1.9;\n  padding: 1.1em 1.15em 1.15em;\n  background: var(--code-background);\n  border: 1px solid var(--background-modifier-border);\n  border-left: 3px solid var(--epx-ord-tint);\n  border-radius: var(--radius-m);\n  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);\n}\ncode.epx-ord-T { --epx-ord-tint: var(--color-orange); }\ncode.epx-ord::before {\n  content: \"EpXsG\";\n  position: absolute;\n  inset: 0 0 auto auto;\n  padding: 0 0.7em;\n  font-family: var(--font-interface);\n  font-size: 0.62em;\n  font-weight: 600;\n  letter-spacing: 0.09em;\n  line-height: 1.8;\n  color: var(--epx-ord-tint);\n  background: var(--background-secondary);\n  background: color-mix(in srgb, var(--epx-ord-tint) 22%, var(--background-primary));\n  border-radius: 0 var(--radius-m) 0 var(--radius-s);\n  opacity: 0.95;\n  pointer-events: none;\n  user-select: none;\n}\ncode.epx-ord-T::before { content: \"EpXsT\"; }\n/* 词与词注都是 inline-block：必须 top 对齐，否则有词注的词被顶高、整行字上下跳。 */\n.epx-oline { margin: .18em 0; }\n.epx-gs { display: block; }\n.epx-gw { display: inline-block; text-align: center; margin: 0 .16em; vertical-align: top; }\n.epx-gsrc { display: block; line-height: 1.3; }\n.epx-ggl { display: block; font-size: .74em; line-height: 1.2; opacity: .7; font-family: var(--font-text); }\n.epx-tsrc { display: block; }\n.epx-tzh { display: block; font-family: var(--font-text); opacity: .78; font-size: .92em; }\n.epx-gap { height: .45em; }";
 
 const varTypesOf = new WeakMap();
 /* 术式登记表（refresh 时填充）：提示与检查都用它 */
@@ -1493,7 +1493,8 @@ class LintModal extends Modal {
 
 /* ── 普通句：EpXsG（语法标记）与 EpXsT（句子对译）──────────────────────
    两种都用同一套着色与悬停，但不做术式检查（不是术式）。
-   写法：原文一行一句；译文行以 > 开头，紧接它所译的那句。
+   写法：原文一行一句；译文紧接它所译的那句，两种写法都认——
+     ① 以 > 开头的一行；② 紧跟原文行、含汉字的一行（「原文一行、译文一行」）。
    EpXsG：每个词下方自动标出词类（取《词典》），再列出译文。
    EpXsT：只做对译——原文一行、译文一行。
    ─────────────────────────────────────────────────────────────── */
@@ -1521,9 +1522,9 @@ function ordGlossOf(tok, info) {
   for (const k in map) if (tok.cls.indexOf(k) >= 0) return map[k];
   return '';
 }
-function renderOrdBlock(el, source, mode, grammar, info) {
+function renderOrdBlockInner(el, source, mode, grammar, info) {
   const lines = String(source || '').replace(/\r/g, '').split('\n');
-  let html = '<div class="epx-ord epx-ord-' + mode + '">';
+  let html = '';
   let pending = null;
   const flush = function (pair) {
     if (!pair) return;
@@ -1549,13 +1550,46 @@ function renderOrdBlock(el, source, mode, grammar, info) {
     const t = raw.trim();
     if (!t) { flush(pending); pending = null; html += '<div class="epx-gap"></div>'; continue; }
     if (t.charAt(0) === '>') { if (pending) pending.zh = t.slice(1).trim(); else html += '<div class="epx-oline"><span class="epx-tzh">' + t.slice(1).trim() + '</span></div>'; continue; }
+    /* 没写 > 时：紧跟原文行、含汉字的一行，当作上一句的译文 */
+    if (pending && !pending.zh && /[\u3400-\u9fff]/.test(t)) { pending.zh = t; continue; }
     flush(pending);
     pending = { src: t, zh: '' };
   }
   flush(pending);
-  html += '</div>';
-  el.innerHTML = html;
+  /* 外层用 code.language-EpXsC：token 配色、悬停、样式直接沿用术式那一套选择器。 */
+  el.innerHTML = '<code class="' + ORD_CLASS + ' epx-ord epx-ord-' + mode + '">' + html + '</code>';
 }
+/* 包一层：普通句渲染出错时退化成普通代码块，不要变成 Obsidian 的「代码块渲染错误」。 */
+function renderOrdBlock(el, source, mode, grammar, info) {
+  try {
+    renderOrdBlockInner(el, source, mode, grammar, info);
+  } catch (err) {
+    console.warn('[EpXsC Syntax] 普通句渲染失败：', err);
+    try {
+      if (el && el.empty) el.empty();
+      if (el && el.createEl) el.createEl('pre', { text: String(source || '') });
+    } catch (e) { /* 兜底也失败就算了 */ }
+  }
+}
+
+/* 实时预览里，被「代码块处理器」渲染出来的块是一个部件：点它不会自动回到源码。
+   这里把光标送进块首，于是点一下（含双击的第一下）就能编辑；阅读视图不动。 */
+function bindClickToSource(target, app, el, ctx) {
+  if (!target || !target.style || !target.addEventListener) return;
+  target.style.cursor = 'text';
+  target.addEventListener('click', function () {
+    try {
+      const view = app.workspace.getActiveViewOfType(MarkdownView);
+      if (!view || !view.getMode || view.getMode() !== 'source' || !view.editor) return;
+      const info = ctx && ctx.getSectionInfo ? ctx.getSectionInfo(el) : null;
+      if (!info || typeof info.lineStart !== 'number') return;
+      const last = (typeof info.lineEnd === 'number') ? info.lineEnd : info.lineStart + 1;
+      view.editor.setCursor({ line: Math.min(info.lineStart + 1, last), ch: 0 });
+      view.editor.focus();
+    } catch (e) { /* 光标送不进去就算了，不影响渲染 */ }
+  });
+}
+
 class EpXsCSyntaxPlugin extends Plugin {
   onload() {
     const self = this;
@@ -1629,23 +1663,9 @@ class EpXsCSyntaxPlugin extends Plugin {
         code.className = 'language-EpXsC';
         code.textContent = source;
         pre.appendChild(code);
-        /* 实时预览里，被「代码块处理器」渲染出来的块是一个部件：点它不会自动回到源码。
-           这里自己把光标送进块首，于是点一下就能编辑；阅读视图不动（那里 mode 不是 source）。 */
-        pre.style.cursor = 'text';
-        pre.addEventListener('click', function () {
-          try {
-            const view = self.app.workspace.getActiveViewOfType(MarkdownView);
-            if (!view || !view.getMode || view.getMode() !== 'source' || !view.editor) return;
-            const info = ctx && ctx.getSectionInfo ? ctx.getSectionInfo(el) : null;
-            if (!info || typeof info.lineStart !== 'number') return;
-            const last = (typeof info.lineEnd === 'number') ? info.lineEnd : info.lineStart + 1;
-            const line = Math.min(info.lineStart + 1, last);
-            view.editor.setCursor({ line: line, ch: 0 });
-            view.editor.focus();
-          } catch (e) { /* 光标送不进去就算了，不影响渲染 */ }
-        });
         el.appendChild(pre);
         self.highlightOne(code);
+        bindClickToSource(pre, self.app, el, ctx);
       } catch (err) {
         console.warn('[EpXsC Syntax] 代码块渲染失败：', err);
         if (el && el.createEl) el.createEl('pre', { text: source });
@@ -1654,9 +1674,16 @@ class EpXsCSyntaxPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor('EpXsC', renderBlock);
     this.registerMarkdownCodeBlockProcessor('epxsc', renderBlock);
     this.registerMarkdownCodeBlockProcessor('EPXSC', renderBlock);
-    /* 普通句：语法标记 / 句子对译 */
-    const ordG = (el, src) => renderOrdBlock(el, src, 'G', this.grammar, this.info);
-    const ordT = (el, src) => renderOrdBlock(el, src, 'T', this.grammar, this.info);
+    /* 普通句：语法标记 / 句子对译。
+       Obsidian 的代码块处理器签名是 (source, el, ctx) —— 第一个参数是源码、第二个才是容器元素。
+       这里必须按 (source, el) 接参数，否则 el 拿到的是字符串，innerHTML 赋值会在严格模式下抛
+       TypeError（表现为代码块显示「渲染错误」）。 */
+    const ord = function (source, el, ctx, mode) {
+      renderOrdBlock(el, source, mode, self.grammar, self.info);
+      bindClickToSource(el, self.app, el, ctx);
+    };
+    const ordG = (source, el, ctx) => ord(source, el, ctx, 'G');
+    const ordT = (source, el, ctx) => ord(source, el, ctx, 'T');
     for (const lang of ['EpXsG', 'epxsg', 'EPXSG']) this.registerMarkdownCodeBlockProcessor(lang, ordG);
     for (const lang of ['EpXsT', 'epxst', 'EPXST']) this.registerMarkdownCodeBlockProcessor(lang, ordT);
     this.registerEvent(this.app.vault.on('modify', function (file) {
@@ -1987,7 +2014,9 @@ class EpXsCSyntaxPlugin extends Plugin {
     } catch (err) { /* 忽略 */ }
     const codes = document.querySelectorAll('code[class*="language-EpXsC" i]');
     let tokened = 0;
+    let ordBlocks = 0;
     for (let i = 0; i < codes.length; i++) {
+      if (codes[i].classList && codes[i].classList.contains('epx-ord')) ordBlocks += 1;
       if (codes[i].querySelector('span.token')) tokened += 1;
     }
     const lines = document.querySelectorAll('.HyperMD-codeblock').length;
@@ -2020,7 +2049,7 @@ class EpXsCSyntaxPlugin extends Plugin {
       'EpXsC 自检 · 代码版本 ' + BUILD,
       '词条 ' + this.info.size + ' · 秩 ' + this.ranks.size + ' · 语法' + (this.grammar ? '已装' : '缺失') + ' · 切词器：自带（Prism ' + (window.Prism ? '有' : '没有') + '）',
       '当前视图：' + mode,
-      'EpXsC 代码块 ' + codes.length + ' 个（带 token 的 ' + tokened + ' 个）· 实时预览代码行 ' + lines + ' 行',
+      'EpXsC 代码块 ' + (codes.length - ordBlocks) + ' 个 · 普通句块（G／T）' + ordBlocks + ' 个 · 带 token 的 ' + tokened + ' 个 · 实时预览代码行 ' + lines + ' 行',
       (codes.length > 0 && tokened === 0 && mode === '阅读视图' ? '⚠ 阅读视图里这些块没有 token —— 渲染没跑起来，请把这几行发我' : '渲染：' + (tokened > 0 ? '正常' : '无代码块')),
       '首个块 class：' + firstClass,
       '首个块 token 数：' + tokenCount + ' · 首个 token 颜色：' + color,
@@ -2047,6 +2076,7 @@ class EpXsCSyntaxPlugin extends Plugin {
     const nodes = document.querySelectorAll(CODE_SELECTOR);
     for (let i = 0; i < nodes.length; i++) {
       const code = nodes[i];
+      if (code.classList && code.classList.contains('epx-ord')) continue;
       if (code.querySelector('span.token')) continue;
       if (!(code.textContent || '').trim()) continue;
       this.highlightOne(code);
@@ -2054,6 +2084,8 @@ class EpXsCSyntaxPlugin extends Plugin {
   }
 
   highlightOne(code) {
+    /* 普通句块（EpXsG／EpXsT）自己就是最终渲染结果，别当术式再过一遍切词，否则词表与对译会被冲掉 */
+    if (code && code.classList && code.classList.contains('epx-ord')) return;
     try {
       const text = code.textContent || '';
       /* 50 行以上不着色：再长也看不清，还会拖慢输入 */
